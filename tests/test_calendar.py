@@ -189,3 +189,19 @@ def test_times_across_a_dst_switch_keep_their_wall_clock():
     assert set(t[11:] for t in got["Weekly"]) == {"09:00"}
     floating = "BEGIN:VEVENT\nUID:f\nSUMMARY:Floating\nDTSTART:20261215T120000\nDURATION:PT1H\nEND:VEVENT\n"
     assert _starts(floating, "2026-12-15", 1) == {"Floating": ["2026-12-15T12:00"]}
+
+
+def test_byweekno_byyearday_and_hourly():
+    got = _starts(
+        _ev("w", "Week 39 kickoff", "20250922T090000", "FREQ=YEARLY;BYWEEKNO=39;BYDAY=MO,FR")
+        + _ev("y", "Day 268", "20250101T120000", "FREQ=YEARLY;BYYEARDAY=268")  # 25 Sep in a non-leap year
+        + _ev("l", "Last day", "20251231T120000", "FREQ=YEARLY;BYYEARDAY=-1")
+        + _ev("h", "Pager check", "20260101T080000", "FREQ=HOURLY;INTERVAL=4"),
+        "2026-09-25", 1)
+    assert got["Week 39 kickoff"] == ["2026-09-25T09:00"]  # ISO week 39 of 2026 runs 21-27 Sep
+    assert got["Day 268"] == ["2026-09-25T12:00"]
+    assert "Last day" not in got
+    assert got["Pager check"] == ["2026-09-25T00:00", "2026-09-25T04:00", "2026-09-25T08:00",
+                                  "2026-09-25T12:00", "2026-09-25T16:00", "2026-09-25T20:00"]
+    assert _starts(_ev("l", "Last day", "20251231T120000", "FREQ=YEARLY;BYYEARDAY=-1"), "2026-12-31", 1) == \
+        {"Last day": ["2026-12-31T12:00"]}

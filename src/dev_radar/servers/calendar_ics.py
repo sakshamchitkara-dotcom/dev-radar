@@ -4,8 +4,8 @@ Calendars come from $DEV_RADAR_CALENDARS: .ics files or directories of them, sep
 by os.pathsep (":" on macOS/Linux). Export a calendar from Google/Outlook/Apple Calendar,
 or point it at a synced .ics file. Parsing is stdlib only: line unfolding, TZID/UTC/floating
 and all-day times (IANA or Windows zone names), DURATION, CANCELLED events, EXDATE, RDATE, moved or cancelled instances (RECURRENCE-ID),
-and DAILY/WEEKLY/MONTHLY/YEARLY recurrence (INTERVAL, COUNT, UNTIL, BYDAY incl. 2TU/-1FR,
-BYMONTHDAY, BYMONTH, BYSETPOS).
+and HOURLY/DAILY/WEEKLY/MONTHLY/YEARLY recurrence (INTERVAL, COUNT, UNTIL, BYDAY incl. 2TU/-1FR,
+BYMONTHDAY, BYMONTH, BYSETPOS, BYYEARDAY, BYWEEKNO).
 """
 
 from __future__ import annotations
@@ -169,11 +169,27 @@ def _month_days(year: int, month: int, parts: dict[str, str], start: datetime) -
     return days
 
 
+def _year_days(year: int, parts: dict[str, str], start: datetime) -> list[date]:
+    """Days of one year matched by BYYEARDAY (1, -1 = Dec 31) or BYWEEKNO (ISO weeks, WKST=MO) with BYDAY."""
+    if "BYYEARDAY" in parts:
+        n = 366 if calendar.isleap(year) else 365
+        days = [date(year, 1, 1) + timedelta(days=(d if d > 0 else n + d + 1) - 1)
+                for d in map(int, parts["BYYEARDAY"].split(",")) if 1 <= abs(d) <= n]
+    else:
+        weeks = date(year, 12, 28).isocalendar().week  # 52 or 53
+        wds = [WEEKDAYS.index(s[-2:]) for s in parts.get("BYDAY", WEEKDAYS[start.weekday()]).split(",")]
+        days = [date.fromisocalendar(year, w if w > 0 else weeks + w + 1, wd + 1)
+                for w in map(int, parts["BYWEEKNO"].split(",")) if 1 <= abs(w) <= weeks for wd in wds]
+    if "BYMONTH" in parts:
+        days = [d for d in days if d.month in {int(m) for m in parts["BYMONTH"].split(",")}]
+    return sorted(set(days))
+
+
 def _occurrences(start: datetime, rule: str, exdates: set[datetime], lo: datetime, hi: datetime) -> list[datetime]:
-    """Starts of a DAILY/WEEKLY/MONTHLY/YEARLY series that fall before `hi` (callers filter by overlap with `lo`)."""
+    """Starts of an HOURLY/DAILY/WEEKLY/MONTHLY/YEARLY series that fall before `hi` (callers filter by overlap with `lo`)."""
     parts = dict(p.split("=", 1) for p in rule.upper().split(";") if "=" in p)
     freq = parts.get("FREQ")
-    if freq not in ("DAILY", "WEEKLY", "MONTHLY", "YEARLY"):
+    if freq not in ("HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"):
         return [start]
     interval = int(parts.get("INTERVAL", 1))
     count = int(parts["COUNT"]) if "COUNT" in parts else None
@@ -183,6 +199,8 @@ def _occurrences(start: datetime, rule: str, exdates: set[datetime], lo: datetim
     months = [int(m) for m in parts["BYMONTH"].split(",")] if "BYMONTH" in parts else [start.month]
 
     def period(n: int) -> list[datetime]:
+        if freq == "HOURLY":
+            return [start + timedelta(hours=n * interval)]
         if freq == "DAILY":
             return [start + timedelta(days=n * interval)]
         if freq == "WEEKLY":
@@ -190,14 +208,16 @@ def _occurrences(start: datetime, rule: str, exdates: set[datetime], lo: datetim
         if freq == "MONTHLY":
             y, m = divmod(start.month - 1 + n * interval, 12)
             ym = [(start.year + y, m + 1)]
+        elif "BYYEARDAY" in parts or "BYWEEKNO" in parts:
+            return [start.replace(year=d.year, month=d.month, day=d.day) for d in _year_days(start.year + n * interval, parts, start)]
         else:
             ym = [(start.year + n * interval, m) for m in sorted(months)]
         return [start.replace(year=y, month=m, day=d) for y, m in ym for d in _month_days(y, m, parts, start)]
 
     first = 0
     if count is None:  # skip whole periods before the window instead of walking from DTSTART
-        span = {"DAILY": 1, "WEEKLY": 7, "MONTHLY": 31, "YEARLY": 366}[freq] * interval
-        first = max(0, (lo - start).days // span - 2)
+        span = {"HOURLY": 1 / 24, "DAILY": 1, "WEEKLY": 7, "MONTHLY": 31, "YEARLY": 366}[freq] * interval * 86400
+        first = max(0, int((lo - start).total_seconds() // span) - 2)
     out, seen = [], 0
     for n in range(first, first + MAX_PERIODS):
         for c in period(n):
