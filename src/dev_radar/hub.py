@@ -10,6 +10,8 @@ from contextlib import AsyncExitStack
 from typing import Any
 
 from mcp import Client, StdioServerParameters
+from mcp.client.streamable_http import streamable_http_client
+from mcp.shared._httpx_utils import create_mcp_http_client
 from mcp.types import CallToolResult, TextContent, Tool
 
 # server name -> python module spawned over stdio, or an http(s) URL of a running Streamable HTTP server
@@ -43,7 +45,7 @@ class McpHub:
         try:
             for name, target in self.servers.items():
                 if target.startswith(("http://", "https://")):
-                    server: str | StdioServerParameters = target
+                    server: Any = self._http(target)
                 else:
                     server = StdioServerParameters(
                         command=sys.executable,
@@ -65,6 +67,15 @@ class McpHub:
 
     async def __aexit__(self, *exc: object) -> None:
         await self._stack.aclose()
+
+    def _http(self, url: str) -> Any:
+        """Streamable HTTP transport; sends $DEV_RADAR_HTTP_TOKEN as a bearer token when it is set."""
+        token = os.environ.get("DEV_RADAR_HTTP_TOKEN")
+        if not token:
+            return url
+        http = create_mcp_http_client(headers={"Authorization": f"Bearer {token}"})
+        self._stack.push_async_callback(http.aclose)  # a caller-provided client is not closed by the transport
+        return streamable_http_client(url, http_client=http)
 
     def anthropic_tools(self) -> list[dict[str, Any]]:
         """MCP tool definitions translated to Claude Messages API tool dicts."""
