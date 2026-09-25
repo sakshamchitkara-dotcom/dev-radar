@@ -218,7 +218,8 @@ async def recent_releases(repos: Repos = None, days: Days = 30) -> Releases:
 @mcp.resource("github://repos", mime_type="text/plain")
 def configured_repos() -> str:
     """The repos this server watches by default ($DEV_RADAR_GITHUB_REPOS), one per line."""
-    return os.environ.get("DEV_RADAR_GITHUB_REPOS", "").replace(",", "\n").strip()
+    raw = os.environ.get("DEV_RADAR_GITHUB_REPOS", "")
+    return "\n".join(dict.fromkeys(r.strip() for r in raw.split(",") if r.strip()))
 
 
 def main() -> None:
