@@ -22,10 +22,11 @@ MAX_TURNS = 10
 
 SYSTEM_PROMPT = """You are Dev Radar, writing a concise daily engineering briefing for the team that owns one git repository.
 
-You have tools from five MCP servers: git (repo history), github (PRs awaiting review, CI status, releases for the configured repos), deps (outdated packages and OSV.dev vulnerabilities in the repo's lockfiles), hn (Hacker News front page) and system (this machine's health). Gather what you need, then write the briefing in GitHub-flavored markdown with these sections:
+You have tools from six MCP servers: calendar (today's meetings from local .ics files), git (repo history), github (PRs awaiting review, CI status, releases for the configured repos), deps (outdated packages and OSV.dev vulnerabilities in the repo's lockfiles), hn (Hacker News front page) and system (this machine's health). Gather what you need, then write the briefing in GitHub-flavored markdown with these sections:
 
 # Dev Radar - <date>
 ## TL;DR  (3 bullets max)
+## Today's meetings  (time, title, location; skip the section if the calendar tool reports no calendars)
 ## Repo activity  (commits, who is active, notable subjects)
 ## Churn hotspots  (files changing most; say why that may matter)
 ## GitHub  (CI state per repo, PRs waiting for review oldest first, new releases)
@@ -66,6 +67,7 @@ async def gather(hub: McpHub, keywords: list[str], days: int, since: str | None 
         "releases": ("github__recent_releases", {"days": days}),
         "vulns": ("deps__vulnerabilities", {}),
         "outdated": ("deps__outdated", {"limit": 50}),
+        "meetings": ("calendar__events", {}),
     }
     results = await asyncio.gather(*(hub.call(t, a) for t, a in calls.values()), return_exceptions=True)
     data: dict[str, Any] = {}
@@ -90,6 +92,7 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
     stories, system, procs = data["stories"], data["system"], data["processes"]
     prs, ci, releases = data["prs"], data["ci"], data["releases"]
     vulns, outdated = data["vulns"], data["outdated"]
+    meetings = data.get("meetings", {"error": "No calendars configured"})
 
     tldr = []
     if not _err(authors):
@@ -105,9 +108,26 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
     if not _err(vulns) and vulns["vulnerabilities"]:
         pkgs = {v["package"] for v in vulns["vulnerabilities"]}
         tldr.append(f"{len(vulns['vulnerabilities'])} known vulnerabilit(ies) in {len(pkgs)} package(s)")
+    if not _err(meetings) and meetings["events"]:
+        timed = [e for e in meetings["events"] if not e["all_day"]]
+        tldr.append(f"{len(meetings['events'])} meeting(s) today"
+                    + (f", first at {timed[0]['start'][11:16]} ({timed[0]['title']})" if timed else ""))
     if not _err(system):
         tldr.append("Machine warnings: " + ", ".join(system["warnings"]) if system["warnings"] else "Machine healthy (no metric over threshold)")
     out += ["## TL;DR", *(f"- {t}" for t in tldr or ["No data gathered"]), ""]
+
+    out += ["## Today's meetings"]
+    if (e := _err(meetings)) and "No calendars configured" in e:
+        out.append("_No calendars configured: pass --calendars path/to/work.ics or set DEV_RADAR_CALENDARS._")
+    elif e:
+        out.append(f"_calendar failed: {e}_")
+    else:
+        out += [f"- {'all day' if m['all_day'] else m['start'][11:16] + '–' + m['end'][11:16]} {m['title']}"
+                + (f" ({m['location']})" if m["location"] else "") for m in meetings["events"]]
+        out += [f"- _{x}_" for x in meetings["errors"]]
+        if not meetings["events"] and not meetings["errors"]:
+            out.append(f"No meetings on {meetings['day']}.")
+    out.append("")
 
     out += ["## Repo activity"]
     if e := _err(commits):

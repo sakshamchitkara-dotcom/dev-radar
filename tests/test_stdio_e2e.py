@@ -17,12 +17,13 @@ DEAD_HN = "http://127.0.0.1:9"  # nothing listens on the discard port: forces th
 def offline_hn(monkeypatch):
     monkeypatch.setenv("HN_API_BASE", DEAD_HN)
     monkeypatch.delenv("DEV_RADAR_GITHUB_REPOS", raising=False)
+    monkeypatch.delenv("DEV_RADAR_CALENDARS", raising=False)
 
 
 async def test_hub_discovers_all_servers_over_stdio(repo):
     async with McpHub(str(repo)) as hub:
         assert sorted(hub.tools) == [
-            "deps__list_dependencies", "deps__outdated", "deps__vulnerabilities",
+            "calendar__events", "deps__list_dependencies", "deps__outdated", "deps__vulnerabilities",
             "git__churn_hotspots", "git__recent_commits", "git__top_authors",
             "github__ci_status", "github__prs_awaiting_review", "github__recent_releases",
             "hn__top_stories", "system__snapshot", "system__top_processes",
@@ -43,6 +44,7 @@ async def test_fallback_briefing_over_stdio_degrades_when_hn_is_down(repo):
     assert "| `app.py` | 3 |" in md
     assert "_hn-trends failed:" in md
     assert "_No repos configured: pass --github-repos" in md
+    assert "_No calendars configured: pass --calendars" in md
     assert "_deps-watch failed:" in md and "Could not parse a lockfile" in md  # the fixture's uv.lock is not TOML
     assert "CPU" in md
 
@@ -88,7 +90,7 @@ def test_cli_fallback_end_to_end(repo, tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert proc.returncode == 0, proc.stderr
-    assert "connected 12 tools" in proc.stderr
+    assert "connected 13 tools" in proc.stderr
     assert "## Churn hotspots" in proc.stdout
     assert "## What changed\n- First recorded briefing" in proc.stdout
     assert out.read_text() == proc.stdout

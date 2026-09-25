@@ -30,6 +30,11 @@ DATA = {
     "vulns": {"checked": 40, "vulnerabilities": [{"id": "GHSA-1", "url": "https://osv.dev/GHSA-1", "package": "jinja2",
                                                   "version": "3.1.2", "severity": "HIGH", "summary": "XSS",
                                                   "fixed_in": ["3.1.3"]}]},
+    "meetings": {"day": "2026-09-25", "days": 1, "calendars": ["work.ics"], "errors": ["bad.ics: ValueError: x"],
+                 "events": [{"title": "Offsite", "start": "2026-09-25T00:00:00-07:00", "end": "2026-09-26T00:00:00-07:00",
+                             "all_day": True, "location": None, "calendar": "work.ics"},
+                            {"title": "Standup", "start": "2026-09-25T09:30:00-07:00", "end": "2026-09-25T09:45:00-07:00",
+                             "all_day": False, "location": "Zoom", "calendar": "work.ics"}]},
     "outdated": {"checked": 4, "outdated": [{"name": "httpx", "current": "0.27.0", "latest": "0.28.1"}], "errors": []},
 }
 
@@ -42,6 +47,8 @@ def test_full_data_renders_every_section():
     assert "- CI failing on o/r" in md
     assert "- 1 known vulnerabilit(ies) in 1 package(s)" in md
     assert "- Machine warnings: memory at 93%" in md
+    assert "- 2 meeting(s) today, first at 09:30 (Standup)" in md
+    assert "## Today's meetings\n- all day Offsite\n- 09:30–09:45 Standup (Zoom)\n- _bad.ics: ValueError: x_\n" in md
     assert "- CI `o/r` main@abc1234: **failure** · [CI](https://gh/run/1) failure" in md
     assert "- CI `o/empty` trunk: no workflow runs" in md
     assert "- PR [o/r#7](https://gh/pr/7) Add cache — bob, 4d old, waiting on ada" in md
@@ -70,6 +77,7 @@ def test_every_source_failing_still_renders_a_briefing():
     assert "_deps-watch failed: vulns down_" in md and "_deps-watch outdated check failed: outdated down_" in md
     assert "## Industry radar (all topics)\n_hn-trends failed: stories down_" in md
     assert "_system-health failed: system down_" in md
+    assert "_calendar failed: meetings down_" in md
     assert md.rstrip().endswith("- Nothing urgent. Ship something.")
 
 
@@ -78,6 +86,7 @@ def test_green_ci_and_empty_results():
         "ci": {"items": [{"repo": "o/r", "branch": "main", "sha": "a", "state": "success", "runs": []}], "errors": []},
         "prs": {"items": [], "errors": []}, "releases": {"items": [], "errors": []},
         "vulns": {"checked": 0, "vulnerabilities": []}, "commits": [], "hotspots": [], "stories": [],
+        "meetings": {"day": "2026-09-25", "days": 1, "calendars": ["w.ics"], "errors": [], "events": []},
     }
     md = render_fallback(data, "/x/app", ["ai"], 3)
     assert "- CI green or pending on all 1 watched repo(s)" in md
@@ -86,6 +95,7 @@ def test_green_ci_and_empty_results():
     assert "No lockfile found" in md
     assert "No commits in the window." in md and "No file changes in the window." in md
     assert "Nothing on the HN front page matches today." in md
+    assert "No meetings on 2026-09-25." in md
 
 
 # ---------------------------------------------------------------- claude loop stop conditions

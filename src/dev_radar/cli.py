@@ -103,6 +103,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--timings", action="store_true", help="print per-tool call latency to stderr after the run")
     p.add_argument("--github-repos", help="comma-separated owner/name repos for github-activity "
                    "(default: $DEV_RADAR_GITHUB_REPOS)")
+    p.add_argument("--calendars", help=f".ics files or directories for today's meetings, separated by {os.pathsep!r} "
+                   "(default: $DEV_RADAR_CALENDARS)")
     p.add_argument("--history-dir", type=Path, help="where past briefings are kept (default: "
                    "$XDG_STATE_HOME/dev-radar/history/<repo>-<hash>, i.e. ~/.local/state/...)")
     p.add_argument("--no-history", action="store_true", help="don't save this briefing or diff against earlier ones")
@@ -120,6 +122,8 @@ def main(argv: list[str] | None = None) -> None:
     args.connect = connect
     if args.github_repos is not None:
         os.environ["DEV_RADAR_GITHUB_REPOS"] = args.github_repos  # forwarded to the spawned server
+    if args.calendars is not None:
+        os.environ["DEV_RADAR_CALENDARS"] = args.calendars
     if args.since:
         try:
             start = parse_since(args.since)
