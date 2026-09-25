@@ -107,4 +107,7 @@ async def test_osv_down_is_tool_error(project, monkeypatch):
 def test_is_newer():
     assert is_newer("3.1.6", "2.10") and is_newer("2.10.1", "2.10")
     assert not is_newer("2.10", "2.10") and not is_newer("1.9", "1.10")
-    assert is_newer("2.0rc1", "1.0")  # unparseable: any difference counts
+    assert is_newer("2.0.0", "2.0rc1") and not is_newer("2.0rc1", "2.0.0")  # pre-releases sort before the release
+    assert not is_newer("2.0.0", "2.0")  # trailing zeros are equal, not "outdated"
+    assert is_newer("1.0.post1", "1.0") and is_newer("1.0.0", "1.0.0-beta.1")  # post-release, npm semver pre-release
+    assert is_newer("git-abc", "git-def") and not is_newer("x", "x")  # unparseable: any difference counts

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import httpx
+from packaging.version import InvalidVersion, Version
 from pydantic import BaseModel, Field
 
 from mcp.server import MCPServer
@@ -145,15 +146,12 @@ def _scan(project: Path) -> list[Dependency]:
     return deps
 
 
-def _vkey(v: str) -> tuple[int, ...] | None:
-    # ponytail: numeric release tuple only; pre/post-release ordering needs `packaging` if it ever matters
-    m = re.match(r"^v?(\d+(?:\.\d+)*)$", v)
-    return tuple(int(x) for x in m[1].split(".")) if m else None
-
-
 def is_newer(latest: str, current: str) -> bool:
-    a, b = _vkey(latest), _vkey(current)
-    return a > b if a is not None and b is not None else latest != current
+    """PEP 440 ordering (also parses npm semver like 1.0.0-beta.1); unparseable versions count if they differ."""
+    try:
+        return Version(latest) > Version(current)
+    except InvalidVersion:
+        return latest != current
 
 
 @mcp.tool()
