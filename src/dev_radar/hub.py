@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from contextlib import AsyncExitStack
 from typing import Any
@@ -16,6 +17,8 @@ SERVERS = {
     "hn": "dev_radar.servers.hn_trends",
     "system": "dev_radar.servers.system_health",
 }
+# The stdio transport only forwards a minimal default environment; pass these through too.
+PASSTHROUGH_ENV = ("HN_API_BASE",)
 SEP = "__"  # qualified tool name: "<server>__<tool>" (Claude tool names allow [a-zA-Z0-9_-])
 
 
@@ -34,7 +37,7 @@ class McpHub:
                 params = StdioServerParameters(
                     command=sys.executable,
                     args=["-m", module],
-                    env={"DEV_RADAR_REPO": self.repo},
+                    env={"DEV_RADAR_REPO": self.repo} | {k: os.environ[k] for k in PASSTHROUGH_ENV if k in os.environ},
                 )
                 client = await self._stack.enter_async_context(Client(params))
                 for tool in (await client.list_tools()).tools:
