@@ -11,6 +11,7 @@ BYMONTHDAY, BYMONTH, BYSETPOS).
 from __future__ import annotations
 
 import calendar
+import functools
 import os
 import re
 from datetime import date, datetime, time, timedelta, tzinfo
@@ -78,7 +79,20 @@ class Agenda(BaseModel):
 
 
 def _local() -> tzinfo:
-    return datetime.now().astimezone().tzinfo  # type: ignore[return-value]
+    """The machine's time zone with its DST rules ($TZ, else /etc/localtime), not just today's UTC offset."""
+    return _local_zone(os.environ.get("TZ", "").lstrip(":"))
+
+
+@functools.lru_cache(maxsize=8)
+def _local_zone(tz_env: str) -> tzinfo:
+    try:
+        if tz_env:
+            return ZoneInfo(tz_env)
+        with open("/etc/localtime", "rb") as f:
+            return ZoneInfo.from_file(f)
+    except (OSError, ValueError, ZoneInfoNotFoundError):
+        # ponytail: fixed offset (Windows, odd setups); times on the other side of a DST switch are off by an hour
+        return datetime.now().astimezone().tzinfo  # type: ignore[return-value]
 
 
 def _unfold(text: str) -> list[str]:

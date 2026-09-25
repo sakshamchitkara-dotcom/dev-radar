@@ -179,3 +179,13 @@ def test_rdate_adds_instances_and_exdate_still_wins():
     # RDATE without an RRULE
     assert _starts(_ev("o", "Two dates", "20260921T100000", "", "RDATE;TZID=America/Los_Angeles:20260923T100000\n"),
                    "2026-09-21", 5) == {"Two dates": ["2026-09-21T10:00", "2026-09-23T10:00"]}
+
+
+def test_times_across_a_dst_switch_keep_their_wall_clock():
+    # Seen from September (PDT), a December meeting is still 12:00 PST, not 13:00.
+    got = _starts(_ev("d", "Winter", "20261215T120000") + _ev("s", "Weekly", "20261028T090000", "FREQ=WEEKLY"),
+                  "2026-11-01", 50)
+    assert got["Winter"] == ["2026-12-15T12:00"]
+    assert set(t[11:] for t in got["Weekly"]) == {"09:00"}
+    floating = "BEGIN:VEVENT\nUID:f\nSUMMARY:Floating\nDTSTART:20261215T120000\nDURATION:PT1H\nEND:VEVENT\n"
+    assert _starts(floating, "2026-12-15", 1) == {"Floating": ["2026-12-15T12:00"]}
