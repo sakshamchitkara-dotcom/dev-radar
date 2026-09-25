@@ -34,3 +34,21 @@ jobs:
           uv run dev-radar --mode fallback --since 2d --format html --out briefing.html --github-repos "${{ github.repository }}" > /dev/null
           uv run dev-radar --mode fallback --since yesterday --format slack --no-history | python -c "import json,sys; assert json.load(sys.stdin)['text']"
           grep -q "What changed since" briefing.html
+      - name: Smoke-run config file, calendar section and --timings
+        run: |
+          printf 'days = 3\n[sections]\nindustry_radar = false\nmachine_health = false\n' > "$RUNNER_TEMP/dev-radar.toml"
+          uv run dev-radar --config "$RUNNER_TEMP/dev-radar.toml" --mode fallback --no-history --timings \
+            --calendars examples/team.ics > briefing-config.md 2> timings.txt
+          grep -q "^## Today's meetings" briefing-config.md
+          if grep -q "^## Industry radar" briefing-config.md; then exit 1; fi
+          if grep -q "^hn__top_stories" timings.txt; then exit 1; fi  # a disabled section's tool is never called
+          grep -q "^calendar__events" timings.txt
+      - name: Smoke-run an HTTP server behind a bearer token
+        run: |
+          export DEV_RADAR_HTTP_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+          uv run dev-radar-git --transport streamable-http --port 8123 &
+          for i in $(seq 1 50); do curl -s -o /dev/null http://127.0.0.1:8123/mcp && break; sleep 0.2; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8123/mcp)" = 401
+          uv run dev-radar --mode fallback --no-history --connect git=http://127.0.0.1:8123/mcp > briefing-http.md
+          grep -q "commit(s) in the last 7 days" briefing-http.md
+          kill %1
