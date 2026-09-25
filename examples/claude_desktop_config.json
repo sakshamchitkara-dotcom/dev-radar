@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "dev-radar-git": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-git"],
+      "env": { "DEV_RADAR_REPO": "/ABSOLUTE/PATH/TO/YOUR/REPO" }
+    },
+    "dev-radar-hn": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-hn"]
+    },
+    "dev-radar-system": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-system"]
+    }
+  }
+}
