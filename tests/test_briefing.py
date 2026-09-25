@@ -1,5 +1,10 @@
 """render_fallback with populated GitHub/deps sections and per-source failures (pure function, no servers)."""
 
+from types import SimpleNamespace
+
+import pytest
+
+from dev_radar import briefing
 from dev_radar.briefing import render_fallback
 
 DATA = {
@@ -81,3 +86,44 @@ def test_green_ci_and_empty_results():
     assert "No lockfile found" in md
     assert "No commits in the window." in md and "No file changes in the window." in md
     assert "Nothing on the HN front page matches today." in md
+
+
+# ---------------------------------------------------------------- claude loop stop conditions
+
+class FakeHub:
+    repo = "/x/app"
+
+    def anthropic_tools(self):
+        return [{"name": "git__top_authors", "description": "", "input_schema": {"type": "object"}}]
+
+    async def call(self, name, args):
+        return SimpleNamespace(is_error=False, structured_content={"result": []}, content=[])
+
+
+def scripted(*responses):
+    it = iter(responses)
+
+    async def create(**kw):
+        return next(it)
+    return SimpleNamespace(messages=SimpleNamespace(create=create))
+
+
+TOOL_TURN = SimpleNamespace(stop_reason="tool_use", stop_details=None,
+                            content=[SimpleNamespace(type="tool_use", id="t", name="git__top_authors", input={})])
+
+
+@pytest.mark.parametrize("response,error", [
+    (SimpleNamespace(stop_reason="refusal", stop_details={"category": "x"}, content=[]), "declined"),
+    (SimpleNamespace(stop_reason="max_tokens", stop_details=None, content=[]), "max_tokens"),
+])
+async def test_claude_loop_raises_on_refusal_and_max_tokens(response, error):
+    with pytest.raises(RuntimeError, match=error):
+        await briefing.claude_briefing(FakeHub(), [], 7, client=scripted(response))
+
+
+async def test_claude_loop_gives_up_after_max_turns():
+    client = scripted(*[TOOL_TURN] * briefing.MAX_TURNS)
+    logged = []
+    with pytest.raises(RuntimeError, match=f"within {briefing.MAX_TURNS} turns"):
+        await briefing.claude_briefing(FakeHub(), ["ai"], 7, client=client, since="2026-09-24", log=logged.append)
+    assert logged[0] == "-> git__top_authors({})" and len(logged) == briefing.MAX_TURNS
