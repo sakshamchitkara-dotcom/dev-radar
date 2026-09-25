@@ -123,7 +123,9 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
     out.append("")
 
     out += ["## GitHub"]
-    if e := _err(ci) or _err(prs):
+    if (e := _err(ci) or _err(prs)) and "No repos given" in e:
+        out.append("_No repos configured: pass --github-repos owner/name,... or set DEV_RADAR_GITHUB_REPOS._")
+    elif e:
         out.append(f"_github-activity failed: {e}_")
     else:
         out += [f"- CI `{c['repo']}` {c['branch']}"
