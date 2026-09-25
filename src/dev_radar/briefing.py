@@ -13,7 +13,27 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import anthropic
+
 from dev_radar.hub import McpHub, result_data, result_text
+
+MODEL = "claude-opus-5-5"
+MAX_TURNS = 10
+
+SYSTEM_PROMPT = """You are Dev Radar, writing a concise daily engineering briefing for the team that owns one git repository.
+
+You have tools from three MCP servers: git (repo history), hn (Hacker News front page) and system (this machine's health). Gather what you need, then write the briefing in GitHub-flavored markdown with these sections:
+
+# Dev Radar - <date>
+## TL;DR  (3 bullets max)
+## Repo activity  (commits, who is active, notable subjects)
+## Churn hotspots  (files changing most; say why that may matter)
+## Industry radar  (HN stories relevant to the team's keywords, with links)
+## Machine health  (only call out what is notable)
+## Suggested focus today  (2-4 concrete actions tied to the data above)
+
+Every number and link must come from a tool result. If a tool fails, say so in the relevant section instead of guessing. Output only the briefing."""
+
 
 def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
@@ -118,3 +138,59 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
 
 async def fallback_briefing(hub: McpHub, keywords: list[str], days: int) -> str:
     return render_fallback(await gather(hub, keywords, days), hub.repo, keywords, days)
+
+
+# ---------------------------------------------------------------- claude
+
+
+async def _run_tool(hub: McpHub, block: Any) -> dict[str, Any]:
+    try:
+        res = await hub.call(block.name, block.input)
+        content, is_error = result_text(res), bool(res.is_error)
+    except Exception as e:  # unknown tool, transport failure: report to Claude, don't crash the loop
+        content, is_error = f"{type(e).__name__}: {e}", True
+    return {"type": "tool_result", "tool_use_id": block.id, "content": content or "(empty)", "is_error": is_error}
+
+
+async def claude_briefing(
+    hub: McpHub,
+    keywords: list[str],
+    days: int,
+    client: anthropic.AsyncAnthropic | None = None,
+    log: Any = None,
+) -> str:
+    """Agentic loop: Claude calls MCP tools until it writes the briefing."""
+    client = client or anthropic.AsyncAnthropic()
+    tools = hub.anthropic_tools()
+    messages: list[dict[str, Any]] = [{
+        "role": "user",
+        "content": (
+            f"Today is {_today()}. Write today's briefing for the repo at {Path(hub.repo).resolve()} "
+            f"covering the last {days} days. Team interest keywords for Hacker News: {json.dumps(keywords)}."
+        ),
+    }]
+    for _ in range(MAX_TURNS):
+        response = await client.messages.create(
+            model=MODEL,
+            max_tokens=16000,
+            system=SYSTEM_PROMPT,
+            output_config={"effort": "medium"},
+            tools=tools,
+            messages=messages,
+        )
+        if response.stop_reason == "refusal":
+            raise RuntimeError(f"Claude declined the request: {response.stop_details}")
+        if response.stop_reason == "max_tokens":
+            raise RuntimeError("Claude hit max_tokens before finishing the briefing")
+        # Append the full content (thinking blocks included) so the next turn sees it unchanged.
+        messages.append({"role": "assistant", "content": response.content})
+        tool_uses = [b for b in response.content if b.type == "tool_use"]
+        if response.stop_reason != "tool_use" or not tool_uses:
+            return "".join(b.text for b in response.content if b.type == "text").strip() + "\n"
+        if log:
+            for b in tool_uses:
+                log(f"-> {b.name}({json.dumps(b.input)})")
+        # Run parallel calls concurrently and return every result in one user message.
+        results = await asyncio.gather(*(_run_tool(hub, b) for b in tool_uses))
+        messages.append({"role": "user", "content": list(results)})
+    raise RuntimeError(f"Claude did not finish within {MAX_TURNS} turns")
