@@ -24,7 +24,7 @@ async def run(args: argparse.Namespace) -> str:
     keywords = [k.strip() for k in args.keywords.split(",") if k.strip()]
     mode = args.mode
     if mode == "auto":
-        mode = "claude" if os.environ.get("ANTHROPIC_API_KEY") else "fallback"
+        mode = "claude" if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN") else "fallback"
     async with McpHub(args.repo) as hub:
         _log(f"connected {len(hub.tools)} tools: {', '.join(sorted(hub.tools))}")
         if args.list_tools:
@@ -57,8 +57,14 @@ def main(argv: list[str] | None = None) -> None:
     if not Path(args.repo).is_dir():
         p.error(f"--repo {args.repo!r} is not a directory")
     args.repo = str(Path(args.repo).resolve())
+    # ponytail: env-only check; users on an `ant auth login` profile need ANTHROPIC_API_KEY or --mode auto won't pick Claude
+    if args.mode == "claude" and not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        p.error("--mode claude needs ANTHROPIC_API_KEY (or use --mode fallback)")
 
-    text = asyncio.run(run(args))
+    try:
+        text = asyncio.run(run(args))
+    except (anthropic.APIError, RuntimeError) as e:
+        sys.exit(f"dev-radar: {type(e).__name__}: {e}")
     sys.stdout.write(text)
     if args.out:
         args.out.write_text(text)
