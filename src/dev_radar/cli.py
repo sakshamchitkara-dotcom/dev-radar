@@ -82,6 +82,8 @@ async def run(args: argparse.Namespace) -> str:
     prev = history.baseline(history.load_all(args.history_dir), now)
     md = history.insert_section(md, history.changes_section(prev, data, now))
     _log(f"saved history {history.save(args.history_dir, data, md, now)}")
+    if removed := history.prune(args.history_dir, args.keep):
+        _log(f"pruned {len(removed)} old briefing(s) (--keep {args.keep})")
     return md
 
 
@@ -104,6 +106,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--history-dir", type=Path, help="where past briefings are kept (default: "
                    "$XDG_STATE_HOME/dev-radar/history/<repo>-<hash>, i.e. ~/.local/state/...)")
     p.add_argument("--no-history", action="store_true", help="don't save this briefing or diff against earlier ones")
+    p.add_argument("--keep", type=int, default=90, metavar="N",
+                   help="keep only the newest N saved briefings (default 90; 0 keeps everything)")
     p.add_argument("--list-history", action="store_true", help="list saved briefings for --repo and exit")
     p.add_argument("--connect", action="append", default=[], metavar="NAME=URL",
                    help=f"use a running Streamable HTTP server instead of spawning one; NAME in {sorted(SERVERS)}")
@@ -126,6 +130,8 @@ def main(argv: list[str] | None = None) -> None:
         args.days = max(1, math.ceil((datetime.now().astimezone() - start).total_seconds() / 86400))
     if not 1 <= args.days <= 365:
         p.error("--days/--since must span between 1 and 365 days")
+    if args.keep < 0:
+        p.error("--keep must be 0 (keep everything) or a positive count")
     if not Path(args.repo).is_dir():
         p.error(f"--repo {args.repo!r} is not a directory")
     args.repo = str(Path(args.repo).resolve())

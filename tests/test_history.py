@@ -69,3 +69,12 @@ def test_default_dir_is_per_repo(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
     a, b = history.default_dir("/x/app"), history.default_dir("/y/app")
     assert a.parent == tmp_path / "dev-radar" / "history" and a != b and a.name.startswith("app-")
+
+
+def test_prune_keeps_the_newest_records(tmp_path):
+    for h in range(5):
+        history.save(tmp_path, {}, f"# {h}", NOW + timedelta(hours=h))
+    assert history.prune(tmp_path, 0) == []  # 0 = unlimited
+    removed = history.prune(tmp_path, 2)
+    assert len(removed) == 3 and not any(p.exists() for p in removed)
+    assert [r["markdown"] for r in history.load_all(tmp_path)] == ["# 3", "# 4"]

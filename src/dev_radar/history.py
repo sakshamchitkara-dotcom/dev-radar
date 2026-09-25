@@ -27,6 +27,14 @@ def save(directory: Path, data: dict[str, Any], markdown: str, now: datetime) ->
     return path
 
 
+def prune(directory: Path, keep: int) -> list[Path]:
+    """Delete all but the newest `keep` records (file names sort by time); returns what was removed."""
+    old = sorted(directory.glob("*.json"))[:-keep] if keep > 0 else []
+    for path in old:
+        path.unlink(missing_ok=True)
+    return old
+
+
 def load_all(directory: Path) -> list[dict[str, Any]]:
     """Every readable record, oldest first; corrupt files are skipped, not fatal."""
     records = []
