@@ -4,6 +4,17 @@ All notable changes to this project. Format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-25
+
+### Added
+- `research` MCP server (`dev-radar-research`): `arxiv_papers` (newest arXiv submissions per category, keyword filter) and `feed_items` (recent posts from the RSS/Atom feeds in `DEV_RADAR_FEEDS`; caller-supplied URLs are not accepted). Launched by the host, listed in `.mcp.json` and the Desktop example, available to Claude mode.
+- `calendar`: `RDATE` (DATE, DATE-TIME and PERIOD values), `BYWEEKNO`, `BYYEARDAY` and `HOURLY` recurrence.
+- `calendar`: Windows time zone names in `TZID` (`Pacific Standard Time`, ...) map to IANA zones.
+- `tzdata` dependency, so `zoneinfo` works on Windows and in slim containers without a system tz database.
+
+### Fixed
+- `calendar`: events on the other side of a DST switch were shown an hour off, because local time was today's fixed UTC offset; the local zone now comes from `$TZ` or `/etc/localtime`.
+
 ## [0.2.1] - 2026-09-25
 
 ### Fixed
