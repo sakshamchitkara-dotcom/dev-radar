@@ -24,6 +24,10 @@ Limit = Annotated[int, Field(ge=1, le=200, description="Maximum rows to return")
 RepoPath = Annotated[str | None, Field(description="Path inside a git repo; defaults to $DEV_RADAR_REPO or cwd")]
 
 
+# Generated files churn constantly and drown out real hotspots.
+LOCKFILES = {"uv.lock", "poetry.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "Cargo.lock", "go.sum", "Gemfile.lock"}
+
+
 class Commit(BaseModel):
     sha: str
     author: str
@@ -76,8 +80,10 @@ def recent_commits(days: Days = 7, limit: Limit = 20, repo: RepoPath = None) -> 
 
 
 @mcp.tool()
-def churn_hotspots(days: Days = 30, limit: Limit = 10, repo: RepoPath = None) -> list[FileChurn]:
-    """Files changed most often in the window (by commit count, then lines touched)."""
+def churn_hotspots(
+    days: Days = 30, limit: Limit = 10, repo: RepoPath = None, include_lockfiles: bool = False
+) -> list[FileChurn]:
+    """Files changed most often in the window (by commit count, then lines touched). Lockfiles skipped by default."""
     root = _repo_root(repo)
     raw = _git(root, "log", f"--since={days} days ago", "--numstat", "--format=")
     stats: dict[str, list[int]] = {}
@@ -86,6 +92,8 @@ def churn_hotspots(days: Days = 30, limit: Limit = 10, repo: RepoPath = None) ->
         if len(parts) != 3:
             continue
         added, deleted, path = parts
+        if not include_lockfiles and Path(path).name in LOCKFILES:
+            continue
         s = stats.setdefault(path, [0, 0, 0])
         s[0] += 1
         # Binary files report "-" for line counts.
