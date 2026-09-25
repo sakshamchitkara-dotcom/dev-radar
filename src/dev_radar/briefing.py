@@ -47,7 +47,7 @@ async def gather(hub: McpHub, keywords: list[str], days: int) -> dict[str, Any]:
     calls = {
         "commits": ("git__recent_commits", {"days": days, "limit": 15}),
         "hotspots": ("git__churn_hotspots", {"days": max(days, 30), "limit": 5}),
-        "authors": ("git__top_authors", {"days": days, "limit": 5}),
+        "authors": ("git__top_authors", {"days": days, "limit": 200}),  # full list: TL;DR sums it
         "stories": ("hn__top_stories", {"keywords": keywords, "limit": 6, "scan": 100}),
         "system": ("system__snapshot", {}),
         "processes": ("system__top_processes", {"sort_by": "memory", "limit": 3}),
@@ -74,8 +74,9 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
     stories, system, procs = data["stories"], data["system"], data["processes"]
 
     tldr = []
-    if not _err(commits):
-        tldr.append(f"{len(commits)} commit(s) in the last {days} days" + (f" by {len(authors)} author(s)" if not _err(authors) else ""))
+    if not _err(authors):
+        # commits is capped for display, so count from the uncapped author totals
+        tldr.append(f"{sum(a['commits'] for a in authors)} commit(s) in the last {days} days by {len(authors)} author(s)")
     if not _err(hotspots) and hotspots:
         tldr.append(f"Hottest file: `{hotspots[0]['path']}` ({hotspots[0]['commits']} commits)")
     if not _err(system):
@@ -89,8 +90,10 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
         out.append("No commits in the window.")
     else:
         out += [f"- `{c['sha']}` {c['subject']} — {c['author']}, {c['date'][:10]}" for c in commits]
+        if not _err(authors) and (total := sum(a["commits"] for a in authors)) > len(commits):
+            out.append(f"- …and {total - len(commits)} more")
     if not _err(authors) and authors:
-        out += ["", "Active authors: " + ", ".join(f"{a['author']} ({a['commits']})" for a in authors)]
+        out += ["", "Active authors: " + ", ".join(f"{a['author']} ({a['commits']})" for a in authors[:5])]
     out.append("")
 
     out += ["## Churn hotspots"]
