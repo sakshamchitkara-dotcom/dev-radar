@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import math
+import os
 import re
 import sys
 from datetime import datetime, timedelta
@@ -13,7 +13,8 @@ from pathlib import Path
 
 import anthropic
 
-from dev_radar.briefing import claude_briefing, fallback_briefing
+from dev_radar import history
+from dev_radar.briefing import claude_briefing, gather, render_fallback
 from dev_radar.hub import SERVERS, McpHub
 from dev_radar.render import slack_payload, to_html
 
@@ -45,17 +46,27 @@ async def run(args: argparse.Namespace) -> str:
         _log(f"connected {len(hub.tools)} tools: {', '.join(sorted(hub.tools))}")
         if args.list_tools:
             return "\n".join(f"{t['name']}: {t['description']}" for t in hub.anthropic_tools()) + "\n"
-        if mode == "fallback":
+        # The fixed tool set feeds the fallback template and the history diff in both modes.
+        data = await gather(hub, keywords, args.days, args.since)
+        md = None
+        if mode == "claude":
+            _log("mode: claude")
+            try:
+                md = await claude_briefing(hub, keywords, args.days, log=_log, since=args.since)
+            except (anthropic.APIError, RuntimeError) as e:
+                if args.mode == "claude":
+                    raise
+                _log(f"claude mode failed ({type(e).__name__}: {e}); falling back")
+        else:
             _log("mode: fallback (deterministic)")
-            return await fallback_briefing(hub, keywords, args.days, args.since)
-        _log("mode: claude")
-        try:
-            return await claude_briefing(hub, keywords, args.days, log=_log, since=args.since)
-        except (anthropic.APIError, RuntimeError) as e:
-            if args.mode == "claude":
-                raise
-            _log(f"claude mode failed ({type(e).__name__}: {e}); falling back")
-            return await fallback_briefing(hub, keywords, args.days, args.since)
+        md = md or render_fallback(data, hub.repo, keywords, args.days, args.since)
+    if args.history_dir is None:
+        return md
+    now = datetime.now().astimezone()
+    prev = history.baseline(history.load_all(args.history_dir), now)
+    md = history.insert_section(md, history.changes_section(prev, data, now))
+    _log(f"saved history {history.save(args.history_dir, data, md, now)}")
+    return md
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -73,6 +84,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--list-tools", action="store_true", help="list discovered MCP tools and exit")
     p.add_argument("--github-repos", help="comma-separated owner/name repos for github-activity "
                    "(default: $DEV_RADAR_GITHUB_REPOS)")
+    p.add_argument("--history-dir", type=Path, help="where past briefings are kept (default: "
+                   "$XDG_STATE_HOME/dev-radar/history/<repo>-<hash>, i.e. ~/.local/state/...)")
+    p.add_argument("--no-history", action="store_true", help="don't save this briefing or diff against earlier ones")
+    p.add_argument("--list-history", action="store_true", help="list saved briefings for --repo and exit")
     p.add_argument("--connect", action="append", default=[], metavar="NAME=URL",
                    help=f"use a running Streamable HTTP server instead of spawning one; NAME in {sorted(SERVERS)}")
     args = p.parse_args(argv)
@@ -97,6 +112,13 @@ def main(argv: list[str] | None = None) -> None:
     if not Path(args.repo).is_dir():
         p.error(f"--repo {args.repo!r} is not a directory")
     args.repo = str(Path(args.repo).resolve())
+    args.history_dir = None if args.no_history else (args.history_dir or history.default_dir(args.repo))
+    if args.list_history:
+        records = history.load_all(args.history_dir) if args.history_dir else []
+        for r in records:
+            print(f"{r['created_at']}  {r['path']}")
+        _log(f"{len(records)} saved briefing(s) in {args.history_dir}")
+        return
     # ponytail: env-only check; users on an `ant auth login` profile need ANTHROPIC_API_KEY or --mode auto won't pick Claude
     if args.mode == "claude" and not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
         p.error("--mode claude needs ANTHROPIC_API_KEY (or use --mode fallback)")

@@ -83,10 +83,27 @@ async def test_claude_loop_routes_tool_calls_through_stdio_servers(repo):
 def test_cli_fallback_end_to_end(repo, tmp_path):
     out = tmp_path / "briefing.md"
     proc = subprocess.run(
-        [sys.executable, "-m", "dev_radar.cli", "--repo", str(repo), "--mode", "fallback", "--out", str(out)],
+        [sys.executable, "-m", "dev_radar.cli", "--repo", str(repo), "--mode", "fallback", "--out", str(out),
+         "--history-dir", str(tmp_path / "hist")],
         capture_output=True, text=True, timeout=60,
     )
     assert proc.returncode == 0, proc.stderr
     assert "connected 12 tools" in proc.stderr
     assert "## Churn hotspots" in proc.stdout
+    assert "## What changed\n- First recorded briefing" in proc.stdout
     assert out.read_text() == proc.stdout
+
+    # a second run diffs against the first; commits added in between show up
+    (repo / "new.py").write_text("x = 1\n")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=Ada", "-c", "user.email=a@e.x", "commit", "-qm", "feat: new"], check=True)
+    again = subprocess.run(
+        [sys.executable, "-m", "dev_radar.cli", "--repo", str(repo), "--mode", "fallback", "--format", "html",
+         "--history-dir", str(tmp_path / "hist")],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert again.returncode == 0, again.stderr
+    assert "<h2>What changed since " in again.stdout and "1 new commit(s)" in again.stdout
+    listed = subprocess.run([sys.executable, "-m", "dev_radar.cli", "--repo", str(repo), "--list-history",
+                             "--history-dir", str(tmp_path / "hist")], capture_output=True, text=True, timeout=30)
+    assert len(listed.stdout.splitlines()) == 2
