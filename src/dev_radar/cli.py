@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import anthropic
+from anthropic.lib.credentials import default_credentials
 
 from dev_radar import history
 from dev_radar.briefing import claude_briefing, gather, render_fallback
@@ -33,6 +34,17 @@ def parse_since(text: str, now: datetime | None = None) -> datetime:
     return parsed if parsed.tzinfo else parsed.astimezone()
 
 
+def claude_credentials_problem() -> str | None:
+    """None when the SDK can authenticate (env key/token, `ant auth login` profile, federation); else why not."""
+    if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+        return None
+    try:
+        found = default_credentials()
+    except anthropic.AnthropicError as e:  # an explicitly selected profile that is missing or broken
+        return str(e)
+    return None if found else "no ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN or `ant auth login` profile found"
+
+
 def _log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
@@ -41,7 +53,7 @@ async def run(args: argparse.Namespace) -> str:
     keywords = [k.strip() for k in args.keywords.split(",") if k.strip()]
     mode = args.mode
     if mode == "auto":
-        mode = "claude" if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN") else "fallback"
+        mode = "claude" if claude_credentials_problem() is None else "fallback"
     async with McpHub(args.repo, SERVERS | args.connect) as hub:
         _log(f"connected {len(hub.tools)} tools: {', '.join(sorted(hub.tools))}")
         if args.list_tools:
@@ -77,7 +89,7 @@ def main(argv: list[str] | None = None) -> None:
     window.add_argument("--since", help="window start: 36h, 3d, 2w, yesterday, or an ISO date/datetime")
     p.add_argument("--keywords", default=DEFAULT_KEYWORDS, help="comma-separated HN keywords")
     p.add_argument("--mode", choices=["auto", "claude", "fallback"], default="auto",
-                   help="auto = claude if ANTHROPIC_API_KEY is set, else fallback")
+                   help="auto = claude if credentials are found (API key, auth token or `ant auth login` profile), else fallback")
     p.add_argument("--format", choices=["md", "html", "slack"], default="md",
                    help="md, self-contained html, or slack (incoming-webhook JSON payload with mrkdwn text)")
     p.add_argument("--out", type=Path, help="also write the briefing to this file")
@@ -119,9 +131,8 @@ def main(argv: list[str] | None = None) -> None:
             print(f"{r['created_at']}  {r['path']}")
         _log(f"{len(records)} saved briefing(s) in {args.history_dir}")
         return
-    # ponytail: env-only check; users on an `ant auth login` profile need ANTHROPIC_API_KEY or --mode auto won't pick Claude
-    if args.mode == "claude" and not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
-        p.error("--mode claude needs ANTHROPIC_API_KEY (or use --mode fallback)")
+    if args.mode == "claude" and (problem := claude_credentials_problem()):
+        p.error(f"--mode claude needs Claude credentials: {problem} (or use --mode fallback)")
 
     try:
         text = asyncio.run(run(args))
