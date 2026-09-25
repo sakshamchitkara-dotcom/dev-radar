@@ -15,6 +15,7 @@ import anthropic
 
 from dev_radar.briefing import claude_briefing, fallback_briefing
 from dev_radar.hub import SERVERS, McpHub
+from dev_radar.render import slack_payload, to_html
 
 DEFAULT_KEYWORDS = "ai,llm,llms,python,rust,postgres,security,mcp"
 
@@ -66,6 +67,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--keywords", default=DEFAULT_KEYWORDS, help="comma-separated HN keywords")
     p.add_argument("--mode", choices=["auto", "claude", "fallback"], default="auto",
                    help="auto = claude if ANTHROPIC_API_KEY is set, else fallback")
+    p.add_argument("--format", choices=["md", "html", "slack"], default="md",
+                   help="md, self-contained html, or slack (incoming-webhook JSON payload with mrkdwn text)")
     p.add_argument("--out", type=Path, help="also write the briefing to this file")
     p.add_argument("--list-tools", action="store_true", help="list discovered MCP tools and exit")
     p.add_argument("--github-repos", help="comma-separated owner/name repos for github-activity "
@@ -102,6 +105,10 @@ def main(argv: list[str] | None = None) -> None:
         text = asyncio.run(run(args))
     except (anthropic.APIError, RuntimeError) as e:
         sys.exit(f"dev-radar: {type(e).__name__}: {e}")
+    if not args.list_tools and args.format == "html":
+        text = to_html(text, title=text.splitlines()[0].lstrip("# ") if text.strip() else "Dev Radar")
+    elif not args.list_tools and args.format == "slack":
+        text = slack_payload(text)
     sys.stdout.write(text)
     if args.out:
         args.out.write_text(text)
