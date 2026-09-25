@@ -40,3 +40,27 @@ def test_claude_credentials_from_env_profile_or_nothing(tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_PROFILE")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     assert claude_credentials_problem() is None
+
+
+@pytest.mark.parametrize("argv,message", [
+    (["--connect", "nope=http://127.0.0.1:1/mcp"], "unknown server(s) ['nope']"),
+    (["--connect", "git=127.0.0.1:1/mcp"], "--connect needs NAME=http(s)://host:port/mcp"),
+    (["--days", "0"], "must span between 1 and 365 days"),
+    (["--days", "400"], "must span between 1 and 365 days"),
+    (["--since", "last tuesday"], "--since 'last tuesday': use 36h"),
+    (["--since", "2000-01-01"], "must span between 1 and 365 days"),
+    (["--repo", "/definitely/not/here"], "is not a directory"),
+    (["--days", "3", "--since", "1d"], "not allowed with argument"),
+])
+def test_cli_rejects_bad_arguments_before_starting_servers(argv, message, capsys):
+    from dev_radar.cli import main
+    with pytest.raises(SystemExit) as exc:
+        main(argv)
+    assert exc.value.code == 2
+    assert message in capsys.readouterr().err
+
+
+def test_cli_list_history_in_process(tmp_path, capsys):
+    from dev_radar.cli import main
+    main(["--list-history", "--history-dir", str(tmp_path)])
+    assert capsys.readouterr().err.strip() == f"0 saved briefing(s) in {tmp_path}"
