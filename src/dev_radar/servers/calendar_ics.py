@@ -3,7 +3,7 @@
 Calendars come from $DEV_RADAR_CALENDARS: .ics files or directories of them, separated
 by os.pathsep (":" on macOS/Linux). Export a calendar from Google/Outlook/Apple Calendar,
 or point it at a synced .ics file. Parsing is stdlib only: line unfolding, TZID/UTC/floating
-and all-day times, DURATION, CANCELLED events, EXDATE, moved or cancelled instances (RECURRENCE-ID),
+and all-day times (IANA or Windows zone names), DURATION, CANCELLED events, EXDATE, moved or cancelled instances (RECURRENCE-ID),
 and DAILY/WEEKLY/MONTHLY/YEARLY recurrence (INTERVAL, COUNT, UNTIL, BYDAY incl. 2TU/-1FR,
 BYMONTHDAY, BYMONTH, BYSETPOS).
 """
@@ -28,6 +28,35 @@ from dev_radar.servers import serve
 mcp = MCPServer("calendar")
 
 WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+# Windows time zone names (Outlook/Exchange exports) -> IANA, from CLDR windowZones.xml (territory "001").
+# ponytail: the common zones only; add a row when an export uses another one.
+WINDOWS_TZ = {
+    "Dateline Standard Time": "Etc/GMT+12", "Hawaiian Standard Time": "Pacific/Honolulu",
+    "Alaskan Standard Time": "America/Anchorage", "Pacific Standard Time": "America/Los_Angeles",
+    "US Mountain Standard Time": "America/Phoenix", "Mountain Standard Time": "America/Denver",
+    "Central Standard Time": "America/Chicago", "Central America Standard Time": "America/Guatemala",
+    "Canada Central Standard Time": "America/Regina", "Central Standard Time (Mexico)": "America/Mexico_City",
+    "Eastern Standard Time": "America/New_York", "US Eastern Standard Time": "America/Indianapolis",
+    "Atlantic Standard Time": "America/Halifax", "Newfoundland Standard Time": "America/St_Johns",
+    "E. South America Standard Time": "America/Sao_Paulo", "Argentina Standard Time": "America/Buenos_Aires",
+    "SA Pacific Standard Time": "America/Bogota", "UTC": "Etc/UTC", "Coordinated Universal Time": "Etc/UTC",
+    "GMT Standard Time": "Europe/London", "Greenwich Standard Time": "Atlantic/Reykjavik",
+    "W. Europe Standard Time": "Europe/Berlin", "Romance Standard Time": "Europe/Paris",
+    "Central Europe Standard Time": "Europe/Budapest", "Central European Standard Time": "Europe/Warsaw",
+    "E. Europe Standard Time": "Europe/Chisinau", "FLE Standard Time": "Europe/Kiev",
+    "GTB Standard Time": "Europe/Bucharest", "Israel Standard Time": "Asia/Jerusalem",
+    "South Africa Standard Time": "Africa/Johannesburg", "Egypt Standard Time": "Africa/Cairo",
+    "Turkey Standard Time": "Europe/Istanbul", "Russian Standard Time": "Europe/Moscow",
+    "Arabian Standard Time": "Asia/Dubai", "Arab Standard Time": "Asia/Riyadh", "Iran Standard Time": "Asia/Tehran",
+    "Pakistan Standard Time": "Asia/Karachi", "India Standard Time": "Asia/Calcutta",
+    "Nepal Standard Time": "Asia/Katmandu", "Bangladesh Standard Time": "Asia/Dhaka",
+    "SE Asia Standard Time": "Asia/Bangkok", "China Standard Time": "Asia/Shanghai",
+    "Singapore Standard Time": "Asia/Singapore", "Taipei Standard Time": "Asia/Taipei",
+    "Tokyo Standard Time": "Asia/Tokyo", "Korea Standard Time": "Asia/Seoul",
+    "AUS Eastern Standard Time": "Australia/Sydney", "E. Australia Standard Time": "Australia/Brisbane",
+    "Cen. Australia Standard Time": "Australia/Adelaide", "W. Australia Standard Time": "Australia/Perth",
+    "New Zealand Standard Time": "Pacific/Auckland",
+}
 MAX_PERIODS = 5000  # ponytail: COUNT series walk from DTSTART; open-ended ones jump to the window first
 
 
@@ -81,11 +110,16 @@ def _when(value: str, params: dict[str, str]) -> tuple[datetime, bool]:
     dt = datetime.strptime(value.rstrip("Z"), "%Y%m%dT%H%M%S")
     if utc:
         return dt.replace(tzinfo=ZoneInfo("UTC")), False
+    return dt.replace(tzinfo=_zone(params["TZID"]) if "TZID" in params else _local()), False
+
+
+def _zone(tzid: str) -> tzinfo:
+    """IANA or Windows ("Pacific Standard Time") zone name; unknown names fall back to local time."""
+    tzid = tzid.strip('"')
     try:
-        tz: tzinfo = ZoneInfo(params["TZID"].strip('"')) if "TZID" in params else _local()
+        return ZoneInfo(WINDOWS_TZ.get(tzid, tzid))
     except (ZoneInfoNotFoundError, ValueError):
-        tz = _local()  # Windows-style TZID names ("Pacific Standard Time"): best effort
-    return dt.replace(tzinfo=tz), False
+        return _local()
 
 
 def _duration(value: str) -> timedelta:

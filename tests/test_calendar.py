@@ -159,3 +159,12 @@ def test_recurrence_id_moves_or_cancels_one_instance_and_valarm_is_ignored():
     got = _starts(series + moved + cancelled, "2026-09-21", 5)
     assert got == {"Standup": ["2026-09-21T09:30", "2026-09-24T09:30", "2026-09-25T09:30"],
                    "Standup (moved)": ["2026-09-22T14:00"]}
+
+
+def test_windows_tzid_names_map_to_iana():
+    from dev_radar.servers.calendar_ics import _when
+    pst = _when("20260925T093000", {"TZID": '"Pacific Standard Time"'})[0]
+    ist = _when("20260925T093000", {"TZID": "India Standard Time"})[0]
+    assert pst.utcoffset().total_seconds() == -7 * 3600  # PDT in September
+    assert ist.utcoffset().total_seconds() == 5.5 * 3600
+    assert _when("20260925T093000", {"TZID": "Nowhere/Made_Up"})[0].tzinfo is not None  # local fallback
