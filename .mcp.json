@@ -22,6 +22,11 @@
       "command": "uv",
       "args": ["run", "--quiet", "dev-radar-deps"],
       "env": { "DEV_RADAR_REPO": "." }
+    },
+    "dev-radar-calendar": {
+      "command": "uv",
+      "args": ["run", "--quiet", "dev-radar-calendar"],
+      "env": { "DEV_RADAR_CALENDARS": "examples/team.ics" }
     }
   }
 }

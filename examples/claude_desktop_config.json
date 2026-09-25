@@ -22,6 +22,11 @@
       "command": "uv",
       "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-deps"],
       "env": { "DEV_RADAR_REPO": "/ABSOLUTE/PATH/TO/YOUR/REPO" }
+    },
+    "dev-radar-calendar": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-calendar"],
+      "env": { "DEV_RADAR_CALENDARS": "/ABSOLUTE/PATH/TO/work.ics" }
     }
   }
 }
