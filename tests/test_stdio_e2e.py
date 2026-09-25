@@ -107,3 +107,14 @@ def test_cli_fallback_end_to_end(repo, tmp_path):
     listed = subprocess.run([sys.executable, "-m", "dev_radar.cli", "--repo", str(repo), "--list-history",
                              "--history-dir", str(tmp_path / "hist")], capture_output=True, text=True, timeout=30)
     assert len(listed.stdout.splitlines()) == 2
+
+
+async def test_hub_skips_unreachable_servers_and_explains_their_calls(repo):
+    servers = {"git": "dev_radar.servers.git_insights", "down": "http://127.0.0.1:9/mcp", "crash": "dev_radar.no_such_module"}
+    async with McpHub(str(repo), servers) as hub:
+        assert set(hub.failed) == {"down", "crash"} and "ConnectError" in hub.failed["down"]
+        assert result_data(await hub.call("git__top_authors"))[0]["author"] == "Ada"
+        with pytest.raises(ConnectionError, match="down server unavailable"):
+            await hub.call("down__anything")
+        with pytest.raises(KeyError):
+            await hub.call("git__nope")

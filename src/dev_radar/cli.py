@@ -56,6 +56,8 @@ async def run(args: argparse.Namespace) -> str:
         mode = "claude" if claude_credentials_problem() is None else "fallback"
     async with McpHub(args.repo, SERVERS | args.connect) as hub:
         _log(f"connected {len(hub.tools)} tools: {', '.join(sorted(hub.tools))}")
+        for name, why in hub.failed.items():
+            _log(f"warning: {name} server unavailable, its sections will say so ({why})")
         if args.list_tools:
             return "\n".join(f"{t['name']}: {t['description']}" for t in hub.anthropic_tools()) + "\n"
         # The fixed tool set feeds the fallback template and the history diff in both modes.

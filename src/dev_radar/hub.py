@@ -34,6 +34,7 @@ class McpHub:
         self.repo = repo
         self.servers = servers
         self.tools: dict[str, tuple[Client, Tool]] = {}
+        self.failed: dict[str, str] = {}  # server name -> why it could not be reached
         self._stack = AsyncExitStack()
 
     async def __aenter__(self) -> McpHub:
@@ -47,8 +48,13 @@ class McpHub:
                         args=["-m", target],
                         env={"DEV_RADAR_REPO": self.repo} | {k: os.environ[k] for k in PASSTHROUGH_ENV if k in os.environ},
                     )
-                client = await self._stack.enter_async_context(Client(server))
-                for tool in (await client.list_tools()).tools:
+                try:
+                    client = await self._stack.enter_async_context(Client(server))
+                    tools = (await client.list_tools()).tools
+                except Exception as e:  # one unreachable server must not take the whole briefing down
+                    self.failed[name] = _describe(e)
+                    continue
+                for tool in tools:
                     self.tools[f"{name}{SEP}{tool.name}"] = (client, tool)
         except BaseException:
             await self._stack.aclose()
@@ -71,9 +77,18 @@ class McpHub:
 
     async def call(self, qualified: str, arguments: dict[str, Any] | None = None) -> CallToolResult:
         if qualified not in self.tools:
+            if (server := qualified.split(SEP)[0]) in self.failed:
+                raise ConnectionError(f"{server} server unavailable: {self.failed[server]}")
             raise KeyError(f"Unknown tool {qualified!r}; known: {sorted(self.tools)}")
         client, tool = self.tools[qualified]
         return await client.call_tool(tool.name, arguments or {})
+
+
+def _describe(e: BaseException) -> str:
+    """Innermost message of a (possibly nested) exception group."""
+    while isinstance(e, BaseExceptionGroup) and len(e.exceptions) == 1:
+        e = e.exceptions[0]
+    return f"{type(e).__name__}: {e}"
 
 
 def result_text(result: CallToolResult) -> str:
