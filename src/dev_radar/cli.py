@@ -74,6 +74,8 @@ async def run(args: argparse.Namespace) -> str:
         else:
             _log("mode: fallback (deterministic)")
         md = md or render_fallback(data, hub.repo, keywords, args.days, args.since)
+        if args.timings:
+            _log(hub.timing_report())
     if args.history_dir is None:
         return md
     now = datetime.now().astimezone()
@@ -96,6 +98,7 @@ def main(argv: list[str] | None = None) -> None:
                    help="md, self-contained html, or slack (incoming-webhook JSON payload with mrkdwn text)")
     p.add_argument("--out", type=Path, help="also write the briefing to this file")
     p.add_argument("--list-tools", action="store_true", help="list discovered MCP tools and exit")
+    p.add_argument("--timings", action="store_true", help="print per-tool call latency to stderr after the run")
     p.add_argument("--github-repos", help="comma-separated owner/name repos for github-activity "
                    "(default: $DEV_RADAR_GITHUB_REPOS)")
     p.add_argument("--history-dir", type=Path, help="where past briefings are kept (default: "

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from contextlib import AsyncExitStack
 from typing import Any
 
@@ -35,6 +36,7 @@ class McpHub:
         self.servers = servers
         self.tools: dict[str, tuple[Client, Tool]] = {}
         self.failed: dict[str, str] = {}  # server name -> why it could not be reached
+        self.timings: list[tuple[str, float, bool]] = []  # (tool, seconds, ok) per call, in completion order
         self._stack = AsyncExitStack()
 
     async def __aenter__(self) -> McpHub:
@@ -81,7 +83,24 @@ class McpHub:
                 raise ConnectionError(f"{server} server unavailable: {self.failed[server]}")
             raise KeyError(f"Unknown tool {qualified!r}; known: {sorted(self.tools)}")
         client, tool = self.tools[qualified]
-        return await client.call_tool(tool.name, arguments or {})
+        start, ok = time.perf_counter(), False
+        try:
+            result = await client.call_tool(tool.name, arguments or {})
+            ok = not result.is_error
+            return result
+        finally:
+            self.timings.append((qualified, time.perf_counter() - start, ok))
+
+    def timing_report(self) -> str:
+        """Per-tool call count, errors, and total/max latency, slowest first."""
+        by_tool: dict[str, list[tuple[float, bool]]] = {}
+        for name, secs, ok in self.timings:
+            by_tool.setdefault(name, []).append((secs, ok))
+        rows = sorted(by_tool.items(), key=lambda kv: -max(s for s, _ in kv[1]))
+        lines = [f"{'tool':<32} {'calls':>5} {'errors':>6} {'max ms':>8} {'total ms':>9}"]
+        lines += [f"{name:<32} {len(v):>5} {sum(not ok for _, ok in v):>6} {max(s for s, _ in v) * 1000:>8.0f} "
+                  f"{sum(s for s, _ in v) * 1000:>9.0f}" for name, v in rows]
+        return "\n".join(lines)
 
 
 def _describe(e: BaseException) -> str:

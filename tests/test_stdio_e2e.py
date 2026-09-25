@@ -118,3 +118,17 @@ async def test_hub_skips_unreachable_servers_and_explains_their_calls(repo):
             await hub.call("down__anything")
         with pytest.raises(KeyError):
             await hub.call("git__nope")
+
+
+async def test_hub_records_tool_latency(repo):
+    async with McpHub(str(repo), {"git": "dev_radar.servers.git_insights"}) as hub:
+        await hub.call("git__top_authors")
+        await hub.call("git__recent_commits", {"days": 9999})  # validation error: counted, marked failed
+        await hub.call("git__recent_commits")
+    assert [(n, ok) for n, _, ok in hub.timings] == [
+        ("git__top_authors", True), ("git__recent_commits", False), ("git__recent_commits", True)]
+    assert all(s > 0 for _, s, _ in hub.timings)
+    report = hub.timing_report().splitlines()
+    assert report[0].split() == ["tool", "calls", "errors", "max", "ms", "total", "ms"]
+    row = next(r.split() for r in report if r.startswith("git__recent_commits"))
+    assert row[1:3] == ["2", "1"]
