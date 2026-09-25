@@ -1,4 +1,4 @@
-"""MCP host side: launch every Dev Radar server over stdio and route tool calls."""
+"""MCP host side: connect to every Dev Radar server (stdio subprocess or Streamable HTTP URL) and route tool calls."""
 
 from __future__ import annotations
 
@@ -11,19 +11,24 @@ from typing import Any
 from mcp import Client, StdioServerParameters
 from mcp.types import CallToolResult, TextContent, Tool
 
-# server name -> python module that runs it over stdio
+# server name -> python module spawned over stdio, or an http(s) URL of a running Streamable HTTP server
 SERVERS = {
     "git": "dev_radar.servers.git_insights",
     "hn": "dev_radar.servers.hn_trends",
     "system": "dev_radar.servers.system_health",
+    "github": "dev_radar.servers.github_activity",
+    "deps": "dev_radar.servers.deps_watch",
 }
 # The stdio transport only forwards a minimal default environment; pass these through too.
-PASSTHROUGH_ENV = ("HN_API_BASE",)
+PASSTHROUGH_ENV = (
+    "HN_API_BASE", "GITHUB_TOKEN", "GITHUB_API_BASE", "DEV_RADAR_GITHUB_REPOS",
+    "OSV_API_BASE", "PYPI_API_BASE", "NPM_API_BASE",
+)
 SEP = "__"  # qualified tool name: "<server>__<tool>" (Claude tool names allow [a-zA-Z0-9_-])
 
 
 class McpHub:
-    """Async context manager holding one stdio MCP session per server."""
+    """Async context manager holding one MCP session per server."""
 
     def __init__(self, repo: str, servers: dict[str, str] = SERVERS) -> None:
         self.repo = repo
@@ -33,13 +38,16 @@ class McpHub:
 
     async def __aenter__(self) -> McpHub:
         try:
-            for name, module in self.servers.items():
-                params = StdioServerParameters(
-                    command=sys.executable,
-                    args=["-m", module],
-                    env={"DEV_RADAR_REPO": self.repo} | {k: os.environ[k] for k in PASSTHROUGH_ENV if k in os.environ},
-                )
-                client = await self._stack.enter_async_context(Client(params))
+            for name, target in self.servers.items():
+                if target.startswith(("http://", "https://")):
+                    server: str | StdioServerParameters = target
+                else:
+                    server = StdioServerParameters(
+                        command=sys.executable,
+                        args=["-m", target],
+                        env={"DEV_RADAR_REPO": self.repo} | {k: os.environ[k] for k in PASSTHROUGH_ENV if k in os.environ},
+                    )
+                client = await self._stack.enter_async_context(Client(server))
                 for tool in (await client.list_tools()).tools:
                     self.tools[f"{name}{SEP}{tool.name}"] = (client, tool)
         except BaseException:

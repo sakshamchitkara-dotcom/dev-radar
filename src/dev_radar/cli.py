@@ -11,7 +11,7 @@ from pathlib import Path
 import anthropic
 
 from dev_radar.briefing import claude_briefing, fallback_briefing
-from dev_radar.hub import McpHub
+from dev_radar.hub import SERVERS, McpHub
 
 DEFAULT_KEYWORDS = "ai,llm,llms,python,rust,postgres,security,mcp"
 
@@ -25,7 +25,7 @@ async def run(args: argparse.Namespace) -> str:
     mode = args.mode
     if mode == "auto":
         mode = "claude" if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN") else "fallback"
-    async with McpHub(args.repo) as hub:
+    async with McpHub(args.repo, SERVERS | args.connect) as hub:
         _log(f"connected {len(hub.tools)} tools: {', '.join(sorted(hub.tools))}")
         if args.list_tools:
             return "\n".join(f"{t['name']}: {t['description']}" for t in hub.anthropic_tools()) + "\n"
@@ -51,7 +51,19 @@ def main(argv: list[str] | None = None) -> None:
                    help="auto = claude if ANTHROPIC_API_KEY is set, else fallback")
     p.add_argument("--out", type=Path, help="also write the briefing to this file")
     p.add_argument("--list-tools", action="store_true", help="list discovered MCP tools and exit")
+    p.add_argument("--github-repos", help="comma-separated owner/name repos for github-activity "
+                   "(default: $DEV_RADAR_GITHUB_REPOS)")
+    p.add_argument("--connect", action="append", default=[], metavar="NAME=URL",
+                   help=f"use a running Streamable HTTP server instead of spawning one; NAME in {sorted(SERVERS)}")
     args = p.parse_args(argv)
+    connect = dict(c.partition("=")[::2] for c in args.connect)
+    if unknown := set(connect) - set(SERVERS):
+        p.error(f"--connect: unknown server(s) {sorted(unknown)}; choose from {sorted(SERVERS)}")
+    if bad := [u for u in connect.values() if not u.startswith(("http://", "https://"))]:
+        p.error(f"--connect needs NAME=http(s)://host:port/mcp, got {bad}")
+    args.connect = connect
+    if args.github_repos is not None:
+        os.environ["DEV_RADAR_GITHUB_REPOS"] = args.github_repos  # forwarded to the spawned server
     if not 1 <= args.days <= 365:
         p.error("--days must be between 1 and 365")
     if not Path(args.repo).is_dir():

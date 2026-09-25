@@ -12,6 +12,16 @@
     "dev-radar-system": {
       "command": "uv",
       "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-system"]
+    },
+    "dev-radar-github": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-github"],
+      "env": { "DEV_RADAR_GITHUB_REPOS": "OWNER/REPO,OWNER/OTHER-REPO" }
+    },
+    "dev-radar-deps": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-deps"],
+      "env": { "DEV_RADAR_REPO": "/ABSOLUTE/PATH/TO/YOUR/REPO" }
     }
   }
 }
