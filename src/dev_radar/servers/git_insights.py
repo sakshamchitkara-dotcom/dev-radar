@@ -130,6 +130,19 @@ def repo_summary() -> str:
     return "\n".join(lines)
 
 
+@mcp.prompt(title="Stand-up summary")
+def standup(days: str = "1") -> str:
+    """Draft a stand-up update from the default repo's recent commits (embedded in the prompt)."""
+    n = int(days) if days.isdigit() and 1 <= int(days) <= 365 else 1
+    commits = recent_commits(days=n, limit=50)
+    log = "\n".join(f"- {c.sha} {c.subject} ({c.author}, {c.date[:10]})" for c in commits) or "(no commits)"
+    return (
+        f"Here are the commits from the last {n} day(s):\n\n{log}\n\n"
+        "Write a short stand-up update grouped by theme: what shipped, what is in progress, and any risk "
+        "(reverts, fixups, large churn). Use churn_hotspots if you need more context. Keep it under 8 bullets."
+    )
+
+
 def main() -> None:
     serve(mcp)
 

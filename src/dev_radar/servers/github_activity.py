@@ -222,6 +222,19 @@ def configured_repos() -> str:
     return "\n".join(dict.fromkeys(r.strip() for r in raw.split(",") if r.strip()))
 
 
+@mcp.prompt(title="Review queue triage")
+def review_queue(repos: str = "") -> str:
+    """Ask the model to triage open PRs and CI health for the given (or configured) repos."""
+    target = repos.strip() or "the configured repos ($DEV_RADAR_GITHUB_REPOS)"
+    return (
+        f"Triage the review queue for {target}.\n"
+        "1. Call prs_awaiting_review and ci_status.\n"
+        "2. List PRs oldest first with who is blocking each one.\n"
+        "3. Flag any repo whose default branch CI is failing: a red main blocks every PR.\n"
+        "4. End with the three reviews that would unblock the most work today."
+    )
+
+
 def main() -> None:
     serve(mcp)
 

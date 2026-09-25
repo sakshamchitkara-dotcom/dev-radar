@@ -227,6 +227,20 @@ async def vulnerabilities(project: ProjectPath = None) -> VulnReport:
     return VulnReport(checked=len(deps), vulnerabilities=await check_vulns(deps) if deps else [])
 
 
+@mcp.prompt(title="Dependency triage")
+def triage_dependencies(project: str = "") -> str:
+    """Ask the model to turn vulnerability and outdated reports into an upgrade plan."""
+    target = project.strip() or "the default project"
+    return (
+        f"Audit the dependencies of {target}.\n"
+        "1. Call vulnerabilities, then outdated.\n"
+        "2. Group vulnerabilities by package; for each, give the minimum fixed version and severity.\n"
+        "3. Propose an upgrade order: security fixes first, then major-version jumps with release-note links "
+        "to check, then routine bumps.\n"
+        "Only cite versions and IDs that appear in tool results."
+    )
+
+
 def main() -> None:
     serve(mcp)
 
