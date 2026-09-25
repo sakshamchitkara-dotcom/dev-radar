@@ -6,3 +6,5 @@ dist/
 .env
 briefing*.md
 !docs/sample-briefing*.md
+briefing*.html
+briefing*.json

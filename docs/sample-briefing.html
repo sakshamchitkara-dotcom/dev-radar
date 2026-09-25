@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dev Radar - 2026-09-25</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#59636e;--line:#d1d9e0;--code:#f6f8fa;--link:#0969da}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#9198a1;--line:#3d444d;--code:#151b23;--link:#4493f8}}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+max-width:860px;margin:0 auto;padding:24px 16px}
+h1{font-size:1.6em;margin:.2em 0}h2{font-size:1.2em;border-bottom:1px solid var(--line);padding-bottom:.25em;margin-top:1.6em}
+a{color:var(--link)}code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.9em}
+em{color:var(--muted)}ul{padding-left:1.4em}li{margin:.2em 0}
+.table{overflow-x:auto}table{border-collapse:collapse}th,td{border:1px solid var(--line);padding:4px 10px;text-align:left}
+td.n,th.n{text-align:right}</style></head>
+<body>
+<h1>Dev Radar - 2026-09-25</h1>
+<p><em>Repo <code>dev-radar</code> · last 7d · deterministic mode</em></p>
+<h2>TL;DR</h2>
+<ul><li>
+40 commit(s) in the last 7 days by 1 author(s)
+</li><li>
+Hottest file: <code>src/dev_radar/briefing.py</code> (6 commits)
+</li><li>
+CI failing on sakshamchitkara-dotcom/issue-autopilot-sandbox
+</li><li>
+Machine healthy (no metric over threshold)
+</li></ul>
+<h2>What changed since 2026-09-25 01:30</h2>
+<ul><li>
+2 new commit(s): <code>e273049</code> docs: add CHANGELOG covering 0.1.0 and the unreleased work, <code>4220338</code> docs(readme): document the five servers, formats, history and HTTP
+</li><li>
+CI <code>sakshamchitkara-dotcom/scrapekit</code>: success → <strong>pending</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/issue-autopilot</code>: pending → <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/finagent</code>: success → <strong>pending</strong>
+</li></ul>
+<h2>Repo activity</h2>
+<ul><li>
+<code>e273049</code> docs: add CHANGELOG covering 0.1.0 and the unreleased work — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>4220338</code> docs(readme): document the five servers, formats, history and HTTP — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>53fdc91</code> ci: smoke-test GitHub server, HTML/Slack output and history diff — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>da0e342</code> feat(history): keep past briefings and diff against yesterday — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>38274dd</code> feat(render): self-contained HTML and Slack webhook output (--format) — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>6444dfa</code> feat(cli): --since window (36h, 3d, 2w, yesterday or ISO date) — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>f3fbf0c</code> fix(briefing): render unconfigured GitHub as a setup hint, not a failure — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>d2c75cb</code> feat(briefing): GitHub and Dependencies sections in both modes — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>1f24abf</code> feat(hub): wire github-activity and deps-watch in; allow HTTP servers — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>8ed260b</code> feat: subscribable report resources for CI state and vulnerabilities — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>53092cf</code> feat: add MCP prompt templates to git, github and deps servers — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>dab3219</code> test(deps-watch): cover lockfile parsing, registry and OSV lookups — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>3e15cd8</code> feat(deps-watch): add MCP server for outdated deps and OSV.dev vulnerabilities — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>e951e67</code> test(github-activity): cover review filter, CI head status, releases window — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+<code>b80bb22</code> feat(github-activity): add read-only GitHub MCP server — sakshamchitkara-dotcom, 2026-09-25
+</li><li>
+…and 25 more
+</li></ul>
+<p>Active authors: sakshamchitkara-dotcom (40)</p>
+<h2>Churn hotspots</h2>
+<div class="table"><table><thead><tr><th>File</th><th class="n">Commits</th><th class="n">+lines</th><th class="n">-lines</th></tr></thead><tbody><tr><td><code>src/dev_radar/briefing.py</code></td><td class="n">6</td><td class="n">293</td><td class="n">16</td></tr><tr><td><code>src/dev_radar/cli.py</code></td><td class="n">6</td><td class="n">162</td><td class="n">21</td></tr><tr><td><code>src/dev_radar/servers/git_insights.py</code></td><td class="n">5</td><td class="n">171</td><td class="n">9</td></tr><tr><td><code>tests/test_stdio_e2e.py</code></td><td class="n">5</td><td class="n">113</td><td class="n">4</td></tr><tr><td><code>src/dev_radar/servers/deps_watch.py</code></td><td class="n">4</td><td class="n">281</td><td class="n">4</td></tr></tbody></table></div>
+<h2>GitHub</h2>
+<ul><li>
+CI <code>sakshamchitkara-dotcom/dev-radar</code> main@53fdc91: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/rag-engine</code> main@5501783: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/issue-autopilot-sandbox</code> main@e8e687b: <strong>failure</strong> · <a href="https://github.com/sakshamchitkara-dotcom/issue-autopilot-sandbox/actions/runs/36113077775">check</a> failure
+</li><li>
+CI <code>sakshamchitkara-dotcom/gtm-engine</code> main@f555e3c: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/review-bot</code> main@1eb6512: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/review-bot-sandbox</code> main: no workflow runs
+</li><li>
+CI <code>sakshamchitkara-dotcom/scrapekit</code> main@4d5dd4f: <strong>pending</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/issue-autopilot</code> main@380867b: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/finagent</code> main@554db11: <strong>pending</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/teaspoon-landing</code> main@effd2b6: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/claude</code> main: no workflow runs
+</li><li>
+No PRs awaiting review across 11 repo(s)
+</li><li>
+No releases in the last 7 days
+</li></ul>
+<h2>Dependencies</h2>
+<ul><li>
+0 known vulnerabilit(ies) across 45 pinned package(s) (OSV.dev)
+</li><li>
+0 of 4 direct dependencies behind latest
+</li></ul>
+<h2>Industry radar (ai, llm, llms, python, rust, postgres, security, mcp)</h2>
+<ul><li>
+<a href="https://resobscura.substack.com/p/ai-labs-need-to-start-funding-historical">Using LLMs to trace alchemical knowledge and decode 17th century letters</a> — 130 pts, <a href="https://news.ycombinator.com/item?id=49835531">25 comments</a>
+</li><li>
+<a href="https://blog.trailofbits.com/2026/09/18/auditing-in-the-age-of-good-enough-ai/">Security auditing in the age of (good enough) AI</a> — 85 pts, <a href="https://news.ycombinator.com/item?id=49793957">12 comments</a>
+</li><li>
+<a href="https://www.afr.com/policy/health-and-education/tutoring-company-tell-parents-to-save-their-money-and-use-ai-instead-20260923-p60z0r">Tutoring company tells parents to save their money and 'use AI instead'</a> — 111 pts, <a href="https://news.ycombinator.com/item?id=49831690">174 comments</a>
+</li><li>
+<a href="https://www.theguardian.com/society/2026/sep/24/thats-so-ai-what-gen-alphas-biggest-insult-tells-us">'That's so AI ' What gen Alpha's biggest insult tells us</a> — 154 pts, <a href="https://news.ycombinator.com/item?id=49829650">214 comments</a>
+</li><li>
+<a href="https://transluce.org/agent-activity">Early rogue AI agent activity and attempts to hack found on urlquery.net</a> — 257 pts, <a href="https://news.ycombinator.com/item?id=49826565">260 comments</a>
+</li><li>
+<a href="https://bestmodelforyourbudget.terrydjony.com/">Best LLM for every budget, updated daily</a> — 173 pts, <a href="https://news.ycombinator.com/item?id=49830866">106 comments</a>
+</li></ul>
+<h2>Machine health</h2>
+<ul><li>
+CPU 0% across 10 cores (load 3.4)
+</li><li>
+Memory 72% (11.46 / 16.0 GiB)
+</li><li>
+Disk <code>/</code> 35% used, 29.35 GiB free
+</li><li>
+Heaviest processes: OrbStack Helper (1293 MiB), 2.1.282 (635 MiB), 2.1.268 (320 MiB)
+</li></ul>
+<h2>Suggested focus today</h2>
+<ul><li>
+Fix the red default branch on sakshamchitkara-dotcom/issue-autopilot-sandbox before merging anything else.
+</li><li>
+Review test coverage for <code>src/dev_radar/briefing.py</code> — it changes more than anything else.
+</li><li>
+Skim "Using LLMs to trace alchemical knowledge and decode 17th century letters" — top match for your keywords.
+</li></ul>
+</body></html>

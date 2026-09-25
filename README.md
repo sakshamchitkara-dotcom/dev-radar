@@ -105,7 +105,36 @@ You can also run a server directly with `uv run dev-radar-git` (or `-hn`, `-syst
 
 ## Sample briefing
 
-This is real output from `uv run dev-radar --mode fallback --github-repos <all 11 sakshamchitkara-dotcom repos>` on this repo, second run of the day. Full files: [`docs/sample-briefing.md`](docs/sample-briefing.md) and [`docs/sample-briefing.html`](docs/sample-briefing.html).
+This is real output from `uv run dev-radar --mode fallback --github-repos <all 11 sakshamchitkara-dotcom repos>` on this repo. It is the second run of the day; the baseline ran a minute earlier, so the diff heading says "since 01:30" instead of "since yesterday". Full files: [`docs/sample-briefing.md`](docs/sample-briefing.md) and [`docs/sample-briefing.html`](docs/sample-briefing.html).
+
+```markdown
+# Dev Radar - 2026-09-25
+
+_Repo `dev-radar` · last 7d · deterministic mode_
+
+## TL;DR
+- 40 commit(s) in the last 7 days by 1 author(s)
+- Hottest file: `src/dev_radar/briefing.py` (6 commits)
+- CI failing on sakshamchitkara-dotcom/issue-autopilot-sandbox
+- Machine healthy (no metric over threshold)
+
+## What changed since 2026-09-25 01:30
+- 2 new commit(s): `e273049` docs: add CHANGELOG covering 0.1.0 and the unreleased work, `4220338` docs(readme): document the five servers, formats, history and HTTP
+- CI `sakshamchitkara-dotcom/scrapekit`: success → **pending**
+- CI `sakshamchitkara-dotcom/issue-autopilot`: pending → **success**
+- CI `sakshamchitkara-dotcom/finagent`: success → **pending**
+
+## GitHub
+- CI `sakshamchitkara-dotcom/dev-radar` main@53fdc91: **success**
+- CI `sakshamchitkara-dotcom/rag-engine` main@5501783: **success**
+- CI `sakshamchitkara-dotcom/issue-autopilot-sandbox` main@e8e687b: **failure** · [check](https://github.com/sakshamchitkara-dotcom/issue-autopilot-sandbox/actions/runs/36113077775) failure
+- CI `sakshamchitkara-dotcom/gtm-engine` main@f555e3c: **success**
+...
+
+## Dependencies
+- 0 known vulnerabilit(ies) across 45 pinned package(s) (OSV.dev)
+- 0 of 4 direct dependencies behind latest
+```
 
 ## Tests
 
