@@ -125,6 +125,13 @@ def _from_package_lock(path: Path) -> list[Dependency]:
 
 
 def scan(project: Path) -> list[Dependency]:
+    try:
+        return _scan(project)
+    except (tomllib.TOMLDecodeError, json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
+        raise ToolError(f"Could not parse a lockfile in {project}: {type(e).__name__}: {e}") from e
+
+
+def _scan(project: Path) -> list[Dependency]:
     deps: list[Dependency] = []
     for name in ("uv.lock", "poetry.lock"):
         if (project / name).exists():

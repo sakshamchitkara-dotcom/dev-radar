@@ -16,6 +16,7 @@ DEAD_HN = "http://127.0.0.1:9"  # nothing listens on the discard port: forces th
 @pytest.fixture(autouse=True)
 def offline_hn(monkeypatch):
     monkeypatch.setenv("HN_API_BASE", DEAD_HN)
+    monkeypatch.delenv("DEV_RADAR_GITHUB_REPOS", raising=False)
 
 
 async def test_hub_discovers_all_servers_over_stdio(repo):
@@ -41,6 +42,8 @@ async def test_fallback_briefing_over_stdio_degrades_when_hn_is_down(repo):
     assert "4 commit(s) in the last 7 days by 2 author(s)" in md
     assert "| `app.py` | 3 |" in md
     assert "_hn-trends failed:" in md
+    assert "_github-activity failed: No repos given" in md
+    assert "_deps-watch failed: Could not parse a lockfile" in md  # the fixture's uv.lock is not TOML
     assert "CPU" in md
 
 
