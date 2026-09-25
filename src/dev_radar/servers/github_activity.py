@@ -125,12 +125,27 @@ def _client() -> httpx.AsyncClient:
     return httpx.AsyncClient(base_url=GITHUB_API, headers=headers, timeout=15, limits=httpx.Limits(max_connections=10))
 
 
-async def _get(client: httpx.AsyncClient, path: str, **params: Any) -> Any:
-    resp = await client.get(path, params=params)
+def _check(resp: httpx.Response, path: str) -> Any:
     if resp.status_code >= 400:
         msg = resp.json().get("message", resp.text) if "json" in resp.headers.get("content-type", "") else resp.text
         raise ToolError(f"GET {path} -> {resp.status_code}: {msg}")
     return resp.json()
+
+
+async def _get(client: httpx.AsyncClient, path: str, **params: Any) -> Any:
+    return _check(await client.get(path, params=params), path)
+
+
+async def _get_pages(client: httpx.AsyncClient, path: str, max_pages: int = 5, **params: Any) -> list[Any]:
+    """A list endpoint followed through its Link rel="next" headers, up to `max_pages` pages."""
+    items: list[Any] = []
+    resp = await client.get(path, params=params)
+    for page in range(1, max_pages + 1):
+        items += _check(resp, path)
+        if page == max_pages or not (url := resp.links.get("next", {}).get("url")):
+            break
+        resp = await client.get(url)  # the next URL carries the query (an explicit params={} would drop it)
+    return items
 
 
 T = TypeVar("T")
@@ -158,7 +173,8 @@ def _age_days(iso: str) -> float:
 async def prs_awaiting_review(repos: Repos = None, include_reviewed: bool = False) -> PullRequests:
     """Open, non-draft PRs that still need a review (reviewers requested or no reviews yet), oldest first."""
     async def fetch(client: httpx.AsyncClient, repo: str) -> list[PullRequest]:
-        pulls = [p for p in await _get(client, f"/repos/{repo}/pulls", state="open", per_page=50) if not p.get("draft")]
+        pulls = await _get_pages(client, f"/repos/{repo}/pulls", state="open", per_page=100)  # up to 500 open PRs
+        pulls = [p for p in pulls if not p.get("draft")]
         reviews = await asyncio.gather(*(_get(client, f"/repos/{repo}/pulls/{p['number']}/reviews", per_page=100) for p in pulls))
         out = []
         for p, revs in zip(pulls, reviews):

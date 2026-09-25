@@ -39,6 +39,14 @@ def handler(request: httpx.Request) -> httpx.Response:
         "/repos/o/empty": {"default_branch": "trunk"},
         "/repos/o/empty/actions/runs": {"workflow_runs": []},
     }
+    if path == "/repos/o/many/pulls":  # two pages of open PRs linked by rel="next"
+        page = int(request.url.params.get("page", 1))
+        nums = range(1, 101) if page == 1 else range(101, 106)
+        link = {"link": '<https://api.test/repos/o/many/pulls?state=open&per_page=100&page=2>; rel="next"'} if page == 1 else {}
+        return httpx.Response(200, headers=link, json=[
+            {**PULLS[0], "number": n, "html_url": f"https://gh/pr/{n}", "created_at": NOW} for n in nums])
+    if path.startswith("/repos/o/many/pulls/"):
+        return httpx.Response(200, json=[])
     if path in routes:
         return httpx.Response(200, json=routes[path])
     return httpx.Response(404, json={"message": "Not Found"})
@@ -59,6 +67,12 @@ async def test_prs_awaiting_review_skips_drafts_and_reviewed():
     assert [p["number"] for p in items] == [1]
     assert items[0]["requested_reviewers"] == ["grace"] and items[0]["reviews"] == 0
     assert [p["number"] for p in everything.structured_content["items"]] == [1, 3]  # oldest first
+
+
+async def test_prs_follow_pagination():
+    async with Client(mcp) as c:
+        r = await c.call_tool("prs_awaiting_review", {"repos": ["o/many"]})
+    assert sorted(p["number"] for p in r.structured_content["items"]) == list(range(1, 106))
 
 
 async def test_ci_status_uses_head_commit_and_reports_failure():
