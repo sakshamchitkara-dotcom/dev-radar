@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -23,6 +24,7 @@ mcp = MCPServer("git-insights")
 
 Days = Annotated[int, Field(ge=1, le=365, description="Look-back window in days")]
 Limit = Annotated[int, Field(ge=1, le=200, description="Maximum rows to return")]
+Since = Annotated[str | None, Field(max_length=40, description="ISO-8601 start of the window; overrides days")]
 RepoPath = Annotated[str | None, Field(description="Path inside a git repo; defaults to $DEV_RADAR_REPO or cwd")]
 
 
@@ -62,6 +64,15 @@ def _repo_root(repo: str | None) -> Path:
     return Path(out.stdout.strip())
 
 
+def _since(days: int, since: str | None) -> str:
+    if since is None:
+        return f"--since={days} days ago"
+    try:
+        return f"--since={datetime.fromisoformat(since).isoformat()}"
+    except ValueError:
+        raise ToolError(f"since must be an ISO-8601 date or datetime, got {since!r}") from None
+
+
 def _git(root: Path, *args: str) -> str:
     out = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=30)
     if out.returncode != 0:
@@ -73,21 +84,21 @@ def _git(root: Path, *args: str) -> str:
 
 
 @mcp.tool()
-def recent_commits(days: Days = 7, limit: Limit = 20, repo: RepoPath = None) -> list[Commit]:
+def recent_commits(days: Days = 7, limit: Limit = 20, repo: RepoPath = None, since: Since = None) -> list[Commit]:
     """List the most recent commits in the look-back window, newest first."""
     root = _repo_root(repo)
-    raw = _git(root, "log", f"--since={days} days ago", f"-n{limit}", "--format=%h%x1f%an%x1f%aI%x1f%s")
+    raw = _git(root, "log", _since(days, since), f"-n{limit}", "--format=%h%x1f%an%x1f%aI%x1f%s")
     return [Commit(**dict(zip(("sha", "author", "date", "subject"), line.split("\x1f"))))
             for line in raw.splitlines() if line]
 
 
 @mcp.tool()
 def churn_hotspots(
-    days: Days = 30, limit: Limit = 10, repo: RepoPath = None, include_lockfiles: bool = False
+    days: Days = 30, limit: Limit = 10, repo: RepoPath = None, include_lockfiles: bool = False, since: Since = None,
 ) -> list[FileChurn]:
     """Files changed most often in the window (by commit count, then lines touched). Lockfiles skipped by default."""
     root = _repo_root(repo)
-    raw = _git(root, "log", f"--since={days} days ago", "--numstat", "--format=")
+    raw = _git(root, "log", _since(days, since), "--numstat", "--format=")
     stats: dict[str, list[int]] = {}
     for line in raw.splitlines():
         parts = line.split("\t")
@@ -106,10 +117,10 @@ def churn_hotspots(
 
 
 @mcp.tool()
-def top_authors(days: Days = 30, limit: Limit = 10, repo: RepoPath = None) -> list[AuthorStats]:
+def top_authors(days: Days = 30, limit: Limit = 10, repo: RepoPath = None, since: Since = None) -> list[AuthorStats]:
     """Authors ranked by commit count in the window."""
     root = _repo_root(repo)
-    raw = _git(root, "log", f"--since={days} days ago", "--format=%an")
+    raw = _git(root, "log", _since(days, since), "--format=%an")
     counts = Counter(line for line in raw.splitlines() if line)
     return [AuthorStats(author=a, commits=n) for a, n in counts.most_common(limit)]
 

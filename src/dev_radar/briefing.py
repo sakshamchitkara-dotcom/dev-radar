@@ -44,12 +44,20 @@ def _today() -> str:
 # ---------------------------------------------------------------- fallback
 
 
-async def gather(hub: McpHub, keywords: list[str], days: int) -> dict[str, Any]:
-    """Call the fixed tool set concurrently; failed calls come back as {"error": text}."""
+def window_label(days: int, since: str | None) -> str:
+    return f"since {since}" if since else f"last {days}d"
+
+
+async def gather(hub: McpHub, keywords: list[str], days: int, since: str | None = None) -> dict[str, Any]:
+    """Call the fixed tool set concurrently; failed calls come back as {"error": text}.
+
+    `since` (ISO-8601) narrows git history exactly; `days` must cover it for day-granular tools.
+    """
+    window = {"days": days} | ({"since": since} if since else {})
     calls = {
-        "commits": ("git__recent_commits", {"days": days, "limit": 15}),
+        "commits": ("git__recent_commits", window | {"limit": 15}),
         "hotspots": ("git__churn_hotspots", {"days": max(days, 30), "limit": 5}),
-        "authors": ("git__top_authors", {"days": days, "limit": 200}),  # full list: TL;DR sums it
+        "authors": ("git__top_authors", window | {"limit": 200}),  # full list: TL;DR sums it
         "stories": ("hn__top_stories", {"keywords": keywords, "limit": 6, "scan": 100}),
         "system": ("system__snapshot", {}),
         "processes": ("system__top_processes", {"sort_by": "memory", "limit": 3}),
@@ -75,8 +83,9 @@ def _err(value: Any) -> str | None:
     return value.get("error") if isinstance(value, dict) and "error" in value else None
 
 
-def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: int) -> str:
-    out = [f"# Dev Radar - {_today()}", "", f"_Repo `{Path(repo).resolve().name}` · last {days}d · deterministic mode_", ""]
+def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: int, since: str | None = None) -> str:
+    label = window_label(days, since)
+    out = [f"# Dev Radar - {_today()}", "", f"_Repo `{Path(repo).resolve().name}` · {label} · deterministic mode_", ""]
     commits, hotspots, authors = data["commits"], data["hotspots"], data["authors"]
     stories, system, procs = data["stories"], data["system"], data["processes"]
     prs, ci, releases = data["prs"], data["ci"], data["releases"]
@@ -85,7 +94,8 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
     tldr = []
     if not _err(authors):
         # commits is capped for display, so count from the uncapped author totals
-        tldr.append(f"{sum(a['commits'] for a in authors)} commit(s) in the last {days} days by {len(authors)} author(s)")
+        tldr.append(f"{sum(a['commits'] for a in authors)} commit(s) {'since ' + since if since else f'in the last {days} days'}"
+                    f" by {len(authors)} author(s)")
     if not _err(hotspots) and hotspots:
         tldr.append(f"Hottest file: `{hotspots[0]['path']}` ({hotspots[0]['commits']} commits)")
     if not _err(ci) and (red := [c["repo"] for c in ci["items"] if c["state"] == "failure"]):
@@ -204,8 +214,8 @@ def render_fallback(data: dict[str, Any], repo: str, keywords: list[str], days: 
     return "\n".join(out) + "\n"
 
 
-async def fallback_briefing(hub: McpHub, keywords: list[str], days: int) -> str:
-    return render_fallback(await gather(hub, keywords, days), hub.repo, keywords, days)
+async def fallback_briefing(hub: McpHub, keywords: list[str], days: int, since: str | None = None) -> str:
+    return render_fallback(await gather(hub, keywords, days, since), hub.repo, keywords, days, since)
 
 
 # ---------------------------------------------------------------- claude
@@ -225,6 +235,7 @@ async def claude_briefing(
     keywords: list[str],
     days: int,
     client: anthropic.AsyncAnthropic | None = None,
+    since: str | None = None,
     log: Any = None,
 ) -> str:
     """Agentic loop: Claude calls MCP tools until it writes the briefing."""
@@ -234,7 +245,9 @@ async def claude_briefing(
         "role": "user",
         "content": (
             f"Today is {_today()}. Write today's briefing for the repo at {Path(hub.repo).resolve()} "
-            f"covering the last {days} days. Team interest keywords for Hacker News: {json.dumps(keywords)}."
+            + (f"covering activity since {since} (pass since={since!r} to git tools; use days={days} elsewhere). "
+               if since else f"covering the last {days} days. ")
+            + f"Team interest keywords for Hacker News: {json.dumps(keywords)}."
         ),
     }]
     for _ in range(MAX_TURNS):

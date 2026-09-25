@@ -46,3 +46,13 @@ async def test_summary_resource(repo, monkeypatch):
         r = await c.read_resource("git://summary")
     text = r.contents[0].text
     assert "branch: `main`" in text and "commits (7d): 4" in text
+
+
+async def test_since_overrides_days(repo):
+    async with Client(mcp) as c:
+        future = await c.call_tool("recent_commits", {"repo": str(repo), "since": "2099-01-01"})
+        past = await c.call_tool("top_authors", {"repo": str(repo), "since": "2000-01-01T00:00:00+00:00"})
+        bad = await c.call_tool("recent_commits", {"repo": str(repo), "since": "last tuesday"})
+    assert future.structured_content["result"] == []
+    assert sum(a["commits"] for a in past.structured_content["result"]) == 4
+    assert bad.is_error and "ISO-8601" in bad.content[0].text
