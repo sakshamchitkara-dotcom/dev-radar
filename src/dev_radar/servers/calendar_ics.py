@@ -3,12 +3,14 @@
 Calendars come from $DEV_RADAR_CALENDARS: .ics files or directories of them, separated
 by os.pathsep (":" on macOS/Linux). Export a calendar from Google/Outlook/Apple Calendar,
 or point it at a synced .ics file. Parsing is stdlib only: line unfolding, TZID/UTC/floating
-and all-day times, DURATION, CANCELLED events, EXDATE, and DAILY/WEEKLY recurrence
-(INTERVAL, COUNT, UNTIL, BYDAY).
+and all-day times, DURATION, CANCELLED events, EXDATE, moved or cancelled instances (RECURRENCE-ID),
+and DAILY/WEEKLY/MONTHLY/YEARLY recurrence (INTERVAL, COUNT, UNTIL, BYDAY incl. 2TU/-1FR,
+BYMONTHDAY, BYMONTH, BYSETPOS).
 """
 
 from __future__ import annotations
 
+import calendar
 import os
 import re
 from datetime import date, datetime, time, timedelta, tzinfo
@@ -26,7 +28,7 @@ from dev_radar.servers import serve
 mcp = MCPServer("calendar")
 
 WEEKDAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
-MAX_OCCURRENCES = 5000  # ponytail: linear walk from DTSTART per rule; a daily event since 2012 is ~5k steps
+MAX_PERIODS = 5000  # ponytail: COUNT series walk from DTSTART; open-ended ones jump to the window first
 
 
 class Event(BaseModel):
@@ -95,55 +97,112 @@ def _duration(value: str) -> timedelta:
     return -delta if m[1] == "-" else delta
 
 
+def _month_days(year: int, month: int, parts: dict[str, str], start: datetime) -> list[int]:
+    """Days of one month matched by BYMONTHDAY / BYDAY (e.g. 2TU, -1FR, MO) / BYSETPOS, else DTSTART's day."""
+    last = calendar.monthrange(year, month)[1]
+    if "BYMONTHDAY" in parts:
+        days = [d if d > 0 else last + d + 1 for d in map(int, parts["BYMONTHDAY"].split(","))]
+    elif "BYDAY" in parts:
+        days = []
+        for spec in parts["BYDAY"].split(","):
+            wd = WEEKDAYS.index(spec[-2:])
+            matching = [d for d in range(1, last + 1) if date(year, month, d).weekday() == wd]
+            nth = int(spec[:-2] or 0)  # 0 = every such weekday; 2 = second; -1 = last
+            if nth == 0:
+                days += matching
+            elif -len(matching) <= nth <= len(matching):
+                days.append(matching[nth - 1 if nth > 0 else nth])
+    else:
+        days = [start.day]
+    days = sorted({d for d in days if 1 <= d <= last})  # RFC 5545: invalid dates (Feb 30) are skipped
+    if "BYSETPOS" in parts:
+        pos = [int(i) for i in parts["BYSETPOS"].split(",")]
+        days = sorted({days[i - 1 if i > 0 else i] for i in pos if i and -len(days) <= i <= len(days)})
+    return days
+
+
 def _occurrences(start: datetime, rule: str, exdates: set[datetime], lo: datetime, hi: datetime) -> list[datetime]:
-    """Starts of a DAILY/WEEKLY series that fall before `hi` (callers filter by overlap with `lo`)."""
-    parts = dict(p.split("=", 1) for p in rule.split(";") if "=" in p)
+    """Starts of a DAILY/WEEKLY/MONTHLY/YEARLY series that fall before `hi` (callers filter by overlap with `lo`)."""
+    parts = dict(p.split("=", 1) for p in rule.upper().split(";") if "=" in p)
     freq = parts.get("FREQ")
-    if freq not in ("DAILY", "WEEKLY"):
-        # ponytail: MONTHLY/YEARLY rules only show their first occurrence; add them when a real calendar needs it
+    if freq not in ("DAILY", "WEEKLY", "MONTHLY", "YEARLY"):
         return [start]
     interval = int(parts.get("INTERVAL", 1))
     count = int(parts["COUNT"]) if "COUNT" in parts else None
     until = _when(parts["UNTIL"], {})[0] if "UNTIL" in parts else None
-    if freq == "WEEKLY":
-        days = sorted(WEEKDAYS.index(d[-2:]) for d in parts.get("BYDAY", WEEKDAYS[start.weekday()]).split(","))
-        week0 = start - timedelta(days=start.weekday())
-        candidates = (week0 + timedelta(weeks=n * interval, days=d) for n in range(MAX_OCCURRENCES) for d in days)
-    else:
-        candidates = (start + timedelta(days=n * interval) for n in range(MAX_OCCURRENCES))
+    week0 = start - timedelta(days=start.weekday())
+    weekdays = sorted(WEEKDAYS.index(d[-2:]) for d in parts.get("BYDAY", WEEKDAYS[start.weekday()]).split(","))
+    months = [int(m) for m in parts["BYMONTH"].split(",")] if "BYMONTH" in parts else [start.month]
+
+    def period(n: int) -> list[datetime]:
+        if freq == "DAILY":
+            return [start + timedelta(days=n * interval)]
+        if freq == "WEEKLY":
+            return [week0 + timedelta(weeks=n * interval, days=d) for d in weekdays]
+        if freq == "MONTHLY":
+            y, m = divmod(start.month - 1 + n * interval, 12)
+            ym = [(start.year + y, m + 1)]
+        else:
+            ym = [(start.year + n * interval, m) for m in sorted(months)]
+        return [start.replace(year=y, month=m, day=d) for y, m in ym for d in _month_days(y, m, parts, start)]
+
+    first = 0
+    if count is None:  # skip whole periods before the window instead of walking from DTSTART
+        span = {"DAILY": 1, "WEEKLY": 7, "MONTHLY": 31, "YEARLY": 366}[freq] * interval
+        first = max(0, (lo - start).days // span - 2)
     out, seen = [], 0
-    for c in candidates:
-        if c < start:
-            continue  # BYDAY days earlier in DTSTART's week
-        if c >= hi or (until and c > until) or (count is not None and seen >= count):
-            break
-        seen += 1
-        if c not in exdates and c >= lo - timedelta(days=31):  # only keep ones that could overlap the window
-            out.append(c)
+    for n in range(first, first + MAX_PERIODS):
+        for c in period(n):
+            if c < start:
+                continue  # BYDAY days earlier in DTSTART's week/month
+            if c >= hi or (until and c > until) or (count is not None and seen >= count):
+                return out
+            seen += 1
+            if c not in exdates and c >= lo - timedelta(days=31):  # only keep ones that could overlap the window
+                out.append(c)
     return out
 
 
 def parse_ics(text: str, name: str, lo: datetime, hi: datetime) -> list[Event]:
     """Events from one calendar file overlapping [lo, hi)."""
-    events: list[Event] = []
+    vevents: list[dict[str, Any]] = []
     props: dict[str, Any] | None = None
+    nested = 0  # inside VALARM etc.: those properties are not the event's
     for line in _unfold(text):
         key, params, value = _prop(line)
         if key == "BEGIN" and value.upper() == "VEVENT":
-            props = {"EXDATE": set()}
-        elif key == "END" and value.upper() == "VEVENT" and props is not None:
-            events += _expand(props, name, lo, hi)
+            props, nested = {"EXDATE": set()}, 0
+        elif props is None:
+            continue
+        elif key == "BEGIN":
+            nested += 1
+        elif key == "END" and nested:
+            nested -= 1
+        elif key == "END" and value.upper() == "VEVENT":
+            vevents.append(props)
             props = None
-        elif props is not None and key == "EXDATE":
+        elif nested:
+            continue
+        elif key == "EXDATE":
             props["EXDATE"] |= {_when(v, params)[0] for v in value.split(",")}
-        elif props is not None and key not in props:
+        elif key not in props:
             props[key] = (value, params)
+    # A RECURRENCE-ID event replaces (or, if cancelled, removes) one instance of the series with the same UID.
+    moved: dict[str, set[datetime]] = {}
+    for ev in vevents:
+        if "RECURRENCE-ID" in ev and "UID" in ev:
+            moved.setdefault(ev["UID"][0], set()).add(_when(*ev["RECURRENCE-ID"])[0])
+    events: list[Event] = []
+    for ev in vevents:
+        if "RECURRENCE-ID" not in ev and ev.get("UID", ("",))[0] in moved:
+            ev["EXDATE"] |= moved[ev["UID"][0]]
+        events += _expand(ev, name, lo, hi)
     return events
 
 
 def _expand(props: dict[str, Any], name: str, lo: datetime, hi: datetime) -> list[Event]:
-    if "DTSTART" not in props or props.get("STATUS", ("",))[0].upper() == "CANCELLED" or "RECURRENCE-ID" in props:
-        return []  # ponytail: moved single instances (RECURRENCE-ID) are dropped; the series keeps its usual slot
+    if "DTSTART" not in props or props.get("STATUS", ("",))[0].upper() == "CANCELLED":
+        return []
     start, all_day = _when(*props["DTSTART"])
     if "DTEND" in props:
         length = _when(*props["DTEND"])[0] - start
@@ -151,7 +210,8 @@ def _expand(props: dict[str, Any], name: str, lo: datetime, hi: datetime) -> lis
         length = _duration(props["DURATION"][0])
     else:
         length = timedelta(days=1) if all_day else timedelta(0)
-    starts = _occurrences(start, props["RRULE"][0], props["EXDATE"], lo, hi) if "RRULE" in props else [start]
+    recurring = "RRULE" in props and "RECURRENCE-ID" not in props
+    starts = _occurrences(start, props["RRULE"][0], props["EXDATE"], lo, hi) if recurring else [start]
     title = _unescape(props.get("SUMMARY", ("(no title)",))[0])
     location = _unescape(props["LOCATION"][0]) if props.get("LOCATION", ("",))[0] else None
     tz = _local()

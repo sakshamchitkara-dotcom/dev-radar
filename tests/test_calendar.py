@@ -107,3 +107,55 @@ def test_duration():
     assert _duration("P1W2D").days == 9 and _duration("-PT15M").total_seconds() == -900
     with pytest.raises(ValueError):
         _duration("1 hour")
+
+
+def _starts(body: str, first: str, days: int) -> dict[str, list[str]]:
+    from datetime import date, datetime, time, timedelta
+
+    from dev_radar.servers.calendar_ics import _local, parse_ics
+    lo = datetime.combine(date.fromisoformat(first), time(), _local())
+    out: dict[str, list[str]] = {}
+    for e in parse_ics(f"BEGIN:VCALENDAR\n{body}END:VCALENDAR\n", "t.ics", lo, lo + timedelta(days=days)):
+        out.setdefault(e.title, []).append(e.start[:16])
+    return out
+
+
+def _ev(uid: str, title: str, start: str, rule: str = "", extra: str = "") -> str:
+    return (f"BEGIN:VEVENT\nUID:{uid}\nSUMMARY:{title}\nDTSTART;TZID=America/Los_Angeles:{start}\nDURATION:PT1H\n"
+            + (f"RRULE:{rule}\n" if rule else "") + extra + "END:VEVENT\n")
+
+
+def test_monthly_and_yearly_rules():
+    got = _starts(
+        _ev("a", "2nd Tue", "20260113T100000", "FREQ=MONTHLY;BYDAY=2TU")
+        + _ev("b", "Month end", "20260131T160000", "FREQ=MONTHLY;BYMONTHDAY=-1")
+        + _ev("c", "31st", "20260131T090000", "FREQ=MONTHLY")  # skips 30-day months (RFC 5545)
+        + _ev("d", "Last weekday", "20260130T170000", "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1")
+        + _ev("e", "Planning", "20250310T090000", "FREQ=YEARLY;BYMONTH=3,9;BYMONTHDAY=10")
+        + _ev("f", "Quarterly", "20260105T110000", "FREQ=MONTHLY;INTERVAL=3;BYDAY=1MO;COUNT=4"),
+        "2026-08-01", 92)
+    assert got["2nd Tue"] == ["2026-08-11T10:00", "2026-09-08T10:00", "2026-10-13T10:00"]
+    assert got["Month end"] == ["2026-08-31T16:00", "2026-09-30T16:00", "2026-10-31T16:00"]
+    assert got["31st"] == ["2026-08-31T09:00", "2026-10-31T09:00"]
+    assert got["Last weekday"] == ["2026-08-31T17:00", "2026-09-30T17:00", "2026-10-30T17:00"]
+    assert got["Planning"] == ["2026-09-10T09:00"]
+    assert got["Quarterly"] == ["2026-10-05T11:00"]  # Jan 5, Apr 6, Jul 6, Oct 5 = COUNT 4
+    assert "Quarterly" not in _starts(_ev("f", "Quarterly", "20260105T110000", "FREQ=MONTHLY;INTERVAL=3;BYDAY=1MO;COUNT=3"),
+                                      "2026-08-01", 92)
+
+
+def test_old_open_ended_series_still_reaches_today():
+    got = _starts(_ev("x", "Daily since 2001", "20010102T090000", "FREQ=DAILY"), "2026-09-25", 1)
+    assert got == {"Daily since 2001": ["2026-09-25T09:00"]}  # ~9,400 days: past the old 5,000-step walk
+
+
+def test_recurrence_id_moves_or_cancels_one_instance_and_valarm_is_ignored():
+    series = _ev("s", "Standup", "20260901T093000", "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+                 "BEGIN:VALARM\nACTION:DISPLAY\nSUMMARY:Reminder\nLOCATION:nowhere\nTRIGGER:-PT10M\nEND:VALARM\n")
+    moved = ("BEGIN:VEVENT\nUID:s\nSUMMARY:Standup (moved)\nRECURRENCE-ID;TZID=America/Los_Angeles:20260922T093000\n"
+             "DTSTART;TZID=America/Los_Angeles:20260922T140000\nDURATION:PT15M\nEND:VEVENT\n")
+    cancelled = ("BEGIN:VEVENT\nUID:s\nSUMMARY:Standup\nSTATUS:CANCELLED\n"
+                 "RECURRENCE-ID;TZID=America/Los_Angeles:20260923T093000\nDTSTART;TZID=America/Los_Angeles:20260923T093000\nEND:VEVENT\n")
+    got = _starts(series + moved + cancelled, "2026-09-21", 5)
+    assert got == {"Standup": ["2026-09-21T09:30", "2026-09-24T09:30", "2026-09-25T09:30"],
+                   "Standup (moved)": ["2026-09-22T14:00"]}
