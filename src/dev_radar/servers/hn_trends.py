@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ResourceNotFoundError, ToolError
 
+from dev_radar.servers import serve
+
 HN_API = os.environ.get("HN_API_BASE", "https://hacker-news.firebaseio.com/v0")
 
 mcp = MCPServer("hn-trends")
@@ -91,7 +93,7 @@ async def item(item_id: str) -> str:
 
 
 def main() -> None:
-    mcp.run()
+    serve(mcp)
 
 
 if __name__ == "__main__":

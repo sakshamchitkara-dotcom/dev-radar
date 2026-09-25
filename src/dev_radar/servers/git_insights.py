@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
+from dev_radar.servers import serve
+
 mcp = MCPServer("git-insights")
 
 Days = Annotated[int, Field(ge=1, le=365, description="Look-back window in days")]
@@ -129,7 +131,7 @@ def repo_summary() -> str:
 
 
 def main() -> None:
-    mcp.run()
+    serve(mcp)
 
 
 if __name__ == "__main__":

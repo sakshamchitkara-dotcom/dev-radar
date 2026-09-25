@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
+from dev_radar.servers import serve
+
 mcp = MCPServer("system-health")
 
 GIB = 1024**3
@@ -105,7 +107,7 @@ def snapshot_resource() -> str:
 
 
 def main() -> None:
-    mcp.run()
+    serve(mcp)
 
 
 if __name__ == "__main__":
