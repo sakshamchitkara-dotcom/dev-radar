@@ -13,86 +13,102 @@ td.n,th.n{text-align:right}</style></head>
 <p><em>Repo <code>dev-radar</code> · last 7d · deterministic mode</em></p>
 <h2>TL;DR</h2>
 <ul><li>
-40 commit(s) in the last 7 days by 1 author(s)
+56 commit(s) in the last 7 days by 1 author(s)
 </li><li>
-Hottest file: <code>src/dev_radar/briefing.py</code> (6 commits)
+Hottest file: <code>src/dev_radar/cli.py</code> (12 commits)
 </li><li>
-CI failing on sakshamchitkara-dotcom/issue-autopilot-sandbox
+CI failing on sakshamchitkara-dotcom/teaspoon-landing, sakshamchitkara-dotcom/issue-autopilot-sandbox
+</li><li>
+1 meeting(s) today, first at 09:30 (Team standup)
 </li><li>
 Machine healthy (no metric over threshold)
 </li></ul>
-<h2>What changed since 2026-09-25 01:30</h2>
+<h2>What changed since 2026-09-25 03:06</h2>
 <ul><li>
-2 new commit(s): <code>e273049</code> docs: add CHANGELOG covering 0.1.0 and the unreleased work, <code>4220338</code> docs(readme): document the five servers, formats, history and HTTP
+CI <code>sakshamchitkara-dotcom/issue-autopilot</code>: pending → <strong>success</strong>
 </li><li>
 CI <code>sakshamchitkara-dotcom/scrapekit</code>: success → <strong>pending</strong>
 </li><li>
-CI <code>sakshamchitkara-dotcom/issue-autopilot</code>: pending → <strong>success</strong>
-</li><li>
-CI <code>sakshamchitkara-dotcom/finagent</code>: success → <strong>pending</strong>
+CI <code>sakshamchitkara-dotcom/dev-radar</code>: pending → <strong>success</strong>
+</li></ul>
+<h2>Today's meetings</h2>
+<ul><li>
+09:30–09:45 Team standup (Zoom)
 </li></ul>
 <h2>Repo activity</h2>
 <ul><li>
-<code>e273049</code> docs: add CHANGELOG covering 0.1.0 and the unreleased work — sakshamchitkara-dotcom, 2026-09-25
+<code>ef8fe25</code> ci: smoke-test config sections, calendar, timings and bearer-token HTTP — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>4220338</code> docs(readme): document the five servers, formats, history and HTTP — sakshamchitkara-dotcom, 2026-09-25
+<code>71ca2da</code> feat: register the calendar server in .mcp.json and the Desktop example — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>53fdc91</code> ci: smoke-test GitHub server, HTML/Slack output and history diff — sakshamchitkara-dotcom, 2026-09-25
+<code>8bcef6e</code> feat(config): TOML config file with per-section enable/disable — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>da0e342</code> feat(history): keep past briefings and diff against yesterday — sakshamchitkara-dotcom, 2026-09-25
+<code>001f3ec</code> feat(briefing): Today's meetings section from the calendar server — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>38274dd</code> feat(render): self-contained HTML and Slack webhook output (--format) — sakshamchitkara-dotcom, 2026-09-25
+<code>d53bc57</code> feat(calendar): MCP server for today's meetings from local .ics files — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>6444dfa</code> feat(cli): --since window (36h, 3d, 2w, yesterday or ISO date) — sakshamchitkara-dotcom, 2026-09-25
+<code>92be138</code> feat(servers): bearer-token auth for the Streamable HTTP transport — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>f3fbf0c</code> fix(briefing): render unconfigured GitHub as a setup hint, not a failure — sakshamchitkara-dotcom, 2026-09-25
+<code>dcafc4e</code> fix(github-activity): follow pagination for open PRs — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>d2c75cb</code> feat(briefing): GitHub and Dependencies sections in both modes — sakshamchitkara-dotcom, 2026-09-25
+<code>2b4d8b6</code> feat(history): cap saved briefings with --keep (default 90) — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>1f24abf</code> feat(hub): wire github-activity and deps-watch in; allow HTTP servers — sakshamchitkara-dotcom, 2026-09-25
+<code>e9831b8</code> feat(hub): record per-tool call latency; --timings prints it — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>8ed260b</code> feat: subscribable report resources for CI state and vulnerabilities — sakshamchitkara-dotcom, 2026-09-25
+<code>db353c4</code> fix(hub): an unreachable server no longer aborts the whole briefing — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>53092cf</code> feat: add MCP prompt templates to git, github and deps servers — sakshamchitkara-dotcom, 2026-09-25
+<code>8c6d7f5</code> fix(deps-watch): compare versions with PEP 440 ordering — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>dab3219</code> test(deps-watch): cover lockfile parsing, registry and OSV lookups — sakshamchitkara-dotcom, 2026-09-25
+<code>a2d4822</code> test(briefing): Claude loop stops on refusal, max_tokens and the turn cap — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>3e15cd8</code> feat(deps-watch): add MCP server for outdated deps and OSV.dev vulnerabilities — sakshamchitkara-dotcom, 2026-09-25
+<code>a227b96</code> test(briefing): cover populated GitHub/deps sections and all-sources-down — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>e951e67</code> test(github-activity): cover review filter, CI head status, releases window — sakshamchitkara-dotcom, 2026-09-25
+<code>399f25e</code> test(cli): cover argument validation and --list-history in-process — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-<code>b80bb22</code> feat(github-activity): add read-only GitHub MCP server — sakshamchitkara-dotcom, 2026-09-25
+<code>d2380b7</code> fix(cli): find Claude credentials from ant auth profiles, not only env vars — sakshamchitkara-dotcom, 2026-09-25
 </li><li>
-…and 25 more
+…and 41 more
 </li></ul>
-<p>Active authors: sakshamchitkara-dotcom (40)</p>
+<p>Active authors: sakshamchitkara-dotcom (56)</p>
 <h2>Churn hotspots</h2>
-<div class="table"><table><thead><tr><th>File</th><th class="n">Commits</th><th class="n">+lines</th><th class="n">-lines</th></tr></thead><tbody><tr><td><code>src/dev_radar/briefing.py</code></td><td class="n">6</td><td class="n">293</td><td class="n">16</td></tr><tr><td><code>src/dev_radar/cli.py</code></td><td class="n">6</td><td class="n">162</td><td class="n">21</td></tr><tr><td><code>src/dev_radar/servers/git_insights.py</code></td><td class="n">5</td><td class="n">171</td><td class="n">9</td></tr><tr><td><code>tests/test_stdio_e2e.py</code></td><td class="n">5</td><td class="n">113</td><td class="n">4</td></tr><tr><td><code>src/dev_radar/servers/deps_watch.py</code></td><td class="n">4</td><td class="n">281</td><td class="n">4</td></tr></tbody></table></div>
+<div class="table"><table><thead><tr><th>File</th><th class="n">Commits</th><th class="n">+lines</th><th class="n">-lines</th></tr></thead><tbody><tr><td><code>src/dev_radar/cli.py</code></td><td class="n">12</td><td class="n">209</td><td class="n">28</td></tr><tr><td><code>src/dev_radar/briefing.py</code></td><td class="n">8</td><td class="n">319</td><td class="n">20</td></tr><tr><td><code>tests/test_stdio_e2e.py</code></td><td class="n">8</td><td class="n">142</td><td class="n">6</td></tr><tr><td><code>src/dev_radar/hub.py</code></td><td class="n">7</td><td class="n">154</td><td class="n">17</td></tr><tr><td><code>pyproject.toml</code></td><td class="n">6</td><td class="n">40</td><td class="n">0</td></tr></tbody></table></div>
 <h2>GitHub</h2>
 <ul><li>
-CI <code>sakshamchitkara-dotcom/dev-radar</code> main@53fdc91: <strong>success</strong>
+CI <code>sakshamchitkara-dotcom/issue-autopilot</code> main@6cdfc2f: <strong>success</strong>
 </li><li>
-CI <code>sakshamchitkara-dotcom/rag-engine</code> main@5501783: <strong>success</strong>
+CI <code>sakshamchitkara-dotcom/review-bot</code> main@2e86eb1: <strong>success</strong>
 </li><li>
-CI <code>sakshamchitkara-dotcom/issue-autopilot-sandbox</code> main@e8e687b: <strong>failure</strong> · <a href="https://github.com/sakshamchitkara-dotcom/issue-autopilot-sandbox/actions/runs/36113077775">check</a> failure
+CI <code>sakshamchitkara-dotcom/scrapekit</code> main@583a551: <strong>pending</strong>
 </li><li>
-CI <code>sakshamchitkara-dotcom/gtm-engine</code> main@f555e3c: <strong>success</strong>
+CI <code>sakshamchitkara-dotcom/rag-engine</code> main@8822c2c: <strong>success</strong>
 </li><li>
-CI <code>sakshamchitkara-dotcom/review-bot</code> main@1eb6512: <strong>success</strong>
+CI <code>sakshamchitkara-dotcom/dev-radar</code> main@ef8fe25: <strong>success</strong>
 </li><li>
 CI <code>sakshamchitkara-dotcom/review-bot-sandbox</code> main: no workflow runs
 </li><li>
-CI <code>sakshamchitkara-dotcom/scrapekit</code> main@4d5dd4f: <strong>pending</strong>
+CI <code>sakshamchitkara-dotcom/finagent</code> main@19eeda7: <strong>success</strong>
 </li><li>
-CI <code>sakshamchitkara-dotcom/issue-autopilot</code> main@380867b: <strong>success</strong>
+CI <code>sakshamchitkara-dotcom/office-eats</code> main@30ad45d: <strong>success</strong>
 </li><li>
-CI <code>sakshamchitkara-dotcom/finagent</code> main@554db11: <strong>pending</strong>
+CI <code>sakshamchitkara-dotcom/teaspoon-landing</code> main@6901109: <strong>failure</strong> · <a href="https://github.com/sakshamchitkara-dotcom/teaspoon-landing/actions/runs/36121473862">Smoke tests</a> failure · <a href="https://github.com/sakshamchitkara-dotcom/teaspoon-landing/actions/runs/36121472534">pages build and deployment</a> success
 </li><li>
-CI <code>sakshamchitkara-dotcom/teaspoon-landing</code> main@effd2b6: <strong>success</strong>
+CI <code>sakshamchitkara-dotcom/gtm-engine</code> main@9ae2acd: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/claw-telegram</code> main@eea3567: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/newsbrief</code> main@c5a6aa1: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/agent-fleet</code> main@0d0d12e: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/voice-agent</code> main@5f4994e: <strong>success</strong>
+</li><li>
+CI <code>sakshamchitkara-dotcom/agent-fleet-sandbox</code> main: no workflow runs
+</li><li>
+CI <code>sakshamchitkara-dotcom/issue-autopilot-sandbox</code> main@e8e687b: <strong>failure</strong> · <a href="https://github.com/sakshamchitkara-dotcom/issue-autopilot-sandbox/actions/runs/36113077775">check</a> failure
 </li><li>
 CI <code>sakshamchitkara-dotcom/claude</code> main: no workflow runs
 </li><li>
-No PRs awaiting review across 11 repo(s)
+PR <a href="https://github.com/sakshamchitkara-dotcom/agent-fleet-sandbox/pull/4">sakshamchitkara-dotcom/agent-fleet-sandbox#4</a> Fix #1: Discounts are inverted: apply_discount returns the discount... — sakshamchitkara-dotcom, 0d old, no reviews yet
 </li><li>
 No releases in the last 7 days
 </li></ul>
@@ -100,37 +116,39 @@ No releases in the last 7 days
 <ul><li>
 0 known vulnerabilit(ies) across 45 pinned package(s) (OSV.dev)
 </li><li>
-0 of 4 direct dependencies behind latest
+0 of 5 direct dependencies behind latest
 </li></ul>
 <h2>Industry radar (ai, llm, llms, python, rust, postgres, security, mcp)</h2>
 <ul><li>
-<a href="https://resobscura.substack.com/p/ai-labs-need-to-start-funding-historical">Using LLMs to trace alchemical knowledge and decode 17th century letters</a> — 130 pts, <a href="https://news.ycombinator.com/item?id=49835531">25 comments</a>
+<a href="https://resobscura.substack.com/p/ai-labs-need-to-start-funding-historical">Using LLMs to trace alchemical knowledge and decode 17th century letters</a> — 134 pts, <a href="https://news.ycombinator.com/item?id=49835531">27 comments</a>
 </li><li>
-<a href="https://blog.trailofbits.com/2026/09/18/auditing-in-the-age-of-good-enough-ai/">Security auditing in the age of (good enough) AI</a> — 85 pts, <a href="https://news.ycombinator.com/item?id=49793957">12 comments</a>
+<a href="https://www.afr.com/policy/health-and-education/tutoring-company-tell-parents-to-save-their-money-and-use-ai-instead-20260923-p60z0r">Tutoring company tells parents to save their money and 'use AI instead'</a> — 116 pts, <a href="https://news.ycombinator.com/item?id=49831690">178 comments</a>
 </li><li>
-<a href="https://www.afr.com/policy/health-and-education/tutoring-company-tell-parents-to-save-their-money-and-use-ai-instead-20260923-p60z0r">Tutoring company tells parents to save their money and 'use AI instead'</a> — 111 pts, <a href="https://news.ycombinator.com/item?id=49831690">174 comments</a>
+<a href="https://blog.trailofbits.com/2026/09/18/auditing-in-the-age-of-good-enough-ai/">Security auditing in the age of (good enough) AI</a> — 90 pts, <a href="https://news.ycombinator.com/item?id=49793957">14 comments</a>
 </li><li>
-<a href="https://www.theguardian.com/society/2026/sep/24/thats-so-ai-what-gen-alphas-biggest-insult-tells-us">'That's so AI ' What gen Alpha's biggest insult tells us</a> — 154 pts, <a href="https://news.ycombinator.com/item?id=49829650">214 comments</a>
+<a href="https://www.theguardian.com/society/2026/sep/24/thats-so-ai-what-gen-alphas-biggest-insult-tells-us">'That's so AI ' What gen Alpha's biggest insult tells us</a> — 161 pts, <a href="https://news.ycombinator.com/item?id=49829650">222 comments</a>
 </li><li>
-<a href="https://transluce.org/agent-activity">Early rogue AI agent activity and attempts to hack found on urlquery.net</a> — 257 pts, <a href="https://news.ycombinator.com/item?id=49826565">260 comments</a>
+<a href="https://transluce.org/agent-activity">Early rogue AI agent activity and attempts to hack found on urlquery.net</a> — 257 pts, <a href="https://news.ycombinator.com/item?id=49826565">264 comments</a>
 </li><li>
-<a href="https://bestmodelforyourbudget.terrydjony.com/">Best LLM for every budget, updated daily</a> — 173 pts, <a href="https://news.ycombinator.com/item?id=49830866">106 comments</a>
+<a href="https://bestmodelforyourbudget.terrydjony.com/">Best LLM for every budget, updated daily</a> — 174 pts, <a href="https://news.ycombinator.com/item?id=49830866">108 comments</a>
 </li></ul>
 <h2>Machine health</h2>
 <ul><li>
-CPU 0% across 10 cores (load 3.4)
+CPU 38% across 10 cores (load 11.41)
 </li><li>
-Memory 72% (11.46 / 16.0 GiB)
+Memory 62% (9.87 / 16.0 GiB)
 </li><li>
-Disk <code>/</code> 35% used, 29.35 GiB free
+Disk <code>/</code> 50% used, 15.78 GiB free
 </li><li>
-Heaviest processes: OrbStack Helper (1293 MiB), 2.1.282 (635 MiB), 2.1.268 (320 MiB)
+Heaviest processes: OrbStack Helper (1403 MiB), 2.1.282 (876 MiB), Google Chrome Helper (Renderer) (341 MiB)
 </li></ul>
 <h2>Suggested focus today</h2>
 <ul><li>
-Fix the red default branch on sakshamchitkara-dotcom/issue-autopilot-sandbox before merging anything else.
+Fix the red default branch on sakshamchitkara-dotcom/teaspoon-landing, sakshamchitkara-dotcom/issue-autopilot-sandbox before merging anything else.
 </li><li>
-Review test coverage for <code>src/dev_radar/briefing.py</code> — it changes more than anything else.
+Review sakshamchitkara-dotcom/agent-fleet-sandbox#4 — oldest PR waiting (0d).
+</li><li>
+Review test coverage for <code>src/dev_radar/cli.py</code> — it changes more than anything else.
 </li><li>
 Skim "Using LLMs to trace alchemical knowledge and decode 17th century letters" — top match for your keywords.
 </li></ul>
