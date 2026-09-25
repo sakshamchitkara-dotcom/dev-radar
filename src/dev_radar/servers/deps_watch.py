@@ -20,6 +20,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from mcp.server.mcpserver.exceptions import ToolError
 
 from dev_radar.servers import serve
@@ -221,10 +222,30 @@ async def check_vulns(deps: list[Dependency]) -> list[Vulnerability]:
 
 
 @mcp.tool()
-async def vulnerabilities(project: ProjectPath = None) -> VulnReport:
-    """Known vulnerabilities (OSV.dev) affecting every pinned dependency, direct and transitive."""
-    deps = scan(_project(project))
-    return VulnReport(checked=len(deps), vulnerabilities=await check_vulns(deps) if deps else [])
+async def vulnerabilities(ctx: Context, project: ProjectPath = None) -> VulnReport:
+    """Known vulnerabilities (OSV.dev) affecting every pinned dependency, direct and transitive.
+
+    The result is also published as the `deps://vulnerabilities` resource; subscribers are
+    notified when the set of vulnerability IDs for the project changes.
+    """
+    root = _project(project)
+    deps = scan(root)
+    report = VulnReport(checked=len(deps), vulnerabilities=await check_vulns(deps) if deps else [])
+    previous = _last_report.get(str(root))
+    _last_report[str(root)] = report
+    if previous is None or {v.id for v in previous.vulnerabilities} != {v.id for v in report.vulnerabilities}:
+        await ctx.notify_resource_updated(REPORT_URI)
+    return report
+
+
+REPORT_URI = "deps://vulnerabilities"
+_last_report: dict[str, VulnReport] = {}  # project path -> last scan, per server process
+
+
+@mcp.resource(REPORT_URI, mime_type="application/json")
+def last_vulnerability_report() -> str:
+    """The most recent vulnerability scan per project (run the `vulnerabilities` tool to refresh). Subscribable."""
+    return json.dumps({path: r.model_dump() for path, r in _last_report.items()})
 
 
 @mcp.prompt(title="Dependency triage")

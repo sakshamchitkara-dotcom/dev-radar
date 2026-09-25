@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import json
 import logging
 import os
 import re
@@ -23,6 +24,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver import Context
 from mcp.server.mcpserver.exceptions import ToolError
 
 from dev_radar.servers import serve
@@ -173,8 +175,11 @@ async def prs_awaiting_review(repos: Repos = None, include_reviewed: bool = Fals
 
 
 @mcp.tool()
-async def ci_status(repos: Repos = None) -> CiStatuses:
-    """GitHub Actions result for the latest commit on each repo's default branch."""
+async def ci_status(ctx: Context, repos: Repos = None) -> CiStatuses:
+    """GitHub Actions result for the latest commit on each repo's default branch.
+
+    States are remembered as the `github://ci` resource; subscribers are notified when any repo's state changes.
+    """
     async def fetch(client: httpx.AsyncClient, repo: str) -> list[CiStatus]:
         branch = (await _get(client, f"/repos/{repo}"))["default_branch"]
         runs = (await _get(client, f"/repos/{repo}/actions/runs", branch=branch, per_page=30))["workflow_runs"]
@@ -195,7 +200,23 @@ async def ci_status(repos: Repos = None) -> CiStatuses:
         return [CiStatus(repo=repo, branch=branch, sha=sha[:7], state=state, runs=head)]
 
     items, errors = await _per_repo(_repos(repos), fetch)
+    changed = False
+    for s in items:
+        changed |= _ci_states.get(s.repo) != (s.sha, s.state)
+        _ci_states[s.repo] = (s.sha, s.state)
+    if changed:
+        await ctx.notify_resource_updated(CI_URI)
     return CiStatuses(items=items, errors=errors)
+
+
+CI_URI = "github://ci"
+_ci_states: dict[str, tuple[str | None, str]] = {}  # repo -> (sha, state) from the last ci_status call
+
+
+@mcp.resource(CI_URI, mime_type="application/json")
+def last_ci_states() -> str:
+    """Last known CI state per repo (refreshed by the `ci_status` tool). Subscribable."""
+    return json.dumps({repo: {"sha": sha, "state": state} for repo, (sha, state) in _ci_states.items()})
 
 
 @mcp.tool()
