@@ -168,3 +168,14 @@ def test_windows_tzid_names_map_to_iana():
     assert pst.utcoffset().total_seconds() == -7 * 3600  # PDT in September
     assert ist.utcoffset().total_seconds() == 5.5 * 3600
     assert _when("20260925T093000", {"TZID": "Nowhere/Made_Up"})[0].tzinfo is not None  # local fallback
+
+
+def test_rdate_adds_instances_and_exdate_still_wins():
+    extra = ("RDATE;TZID=America/Los_Angeles:20260924T150000,20260925T150000\n"
+             "RDATE;VALUE=PERIOD:20260926T010000Z/PT1H\n"  # 25 Sep 18:00 Pacific
+             "EXDATE;TZID=America/Los_Angeles:20260925T150000\n")
+    got = _starts(_ev("r", "Office hours", "20260921T100000", "FREQ=WEEKLY;COUNT=1", extra), "2026-09-21", 5)
+    assert got == {"Office hours": ["2026-09-21T10:00", "2026-09-24T15:00", "2026-09-25T18:00"]}
+    # RDATE without an RRULE
+    assert _starts(_ev("o", "Two dates", "20260921T100000", "", "RDATE;TZID=America/Los_Angeles:20260923T100000\n"),
+                   "2026-09-21", 5) == {"Two dates": ["2026-09-21T10:00", "2026-09-23T10:00"]}

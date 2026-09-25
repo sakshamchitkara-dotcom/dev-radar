@@ -3,7 +3,7 @@
 Calendars come from $DEV_RADAR_CALENDARS: .ics files or directories of them, separated
 by os.pathsep (":" on macOS/Linux). Export a calendar from Google/Outlook/Apple Calendar,
 or point it at a synced .ics file. Parsing is stdlib only: line unfolding, TZID/UTC/floating
-and all-day times (IANA or Windows zone names), DURATION, CANCELLED events, EXDATE, moved or cancelled instances (RECURRENCE-ID),
+and all-day times (IANA or Windows zone names), DURATION, CANCELLED events, EXDATE, RDATE, moved or cancelled instances (RECURRENCE-ID),
 and DAILY/WEEKLY/MONTHLY/YEARLY recurrence (INTERVAL, COUNT, UNTIL, BYDAY incl. 2TU/-1FR,
 BYMONTHDAY, BYMONTH, BYSETPOS).
 """
@@ -205,7 +205,7 @@ def parse_ics(text: str, name: str, lo: datetime, hi: datetime) -> list[Event]:
     for line in _unfold(text):
         key, params, value = _prop(line)
         if key == "BEGIN" and value.upper() == "VEVENT":
-            props, nested = {"EXDATE": set()}, 0
+            props, nested = {"EXDATE": set(), "RDATE": set()}, 0
         elif props is None:
             continue
         elif key == "BEGIN":
@@ -217,8 +217,8 @@ def parse_ics(text: str, name: str, lo: datetime, hi: datetime) -> list[Event]:
             props = None
         elif nested:
             continue
-        elif key == "EXDATE":
-            props["EXDATE"] |= {_when(v, params)[0] for v in value.split(",")}
+        elif key in ("EXDATE", "RDATE"):  # RDATE;VALUE=PERIOD start/end: the start is what counts
+            props[key] |= {_when(v.split("/")[0], params)[0] for v in value.split(",")}
         elif key not in props:
             props[key] = (value, params)
     # A RECURRENCE-ID event replaces (or, if cancelled, removes) one instance of the series with the same UID.
@@ -244,8 +244,11 @@ def _expand(props: dict[str, Any], name: str, lo: datetime, hi: datetime) -> lis
         length = _duration(props["DURATION"][0])
     else:
         length = timedelta(days=1) if all_day else timedelta(0)
-    recurring = "RRULE" in props and "RECURRENCE-ID" not in props
-    starts = _occurrences(start, props["RRULE"][0], props["EXDATE"], lo, hi) if recurring else [start]
+    starts = [start]
+    if "RECURRENCE-ID" not in props:
+        if "RRULE" in props:
+            starts = _occurrences(start, props["RRULE"][0], props["EXDATE"], lo, hi)
+        starts = sorted(set(starts) | (props["RDATE"] - props["EXDATE"]))
     title = _unescape(props.get("SUMMARY", ("(no title)",))[0])
     location = _unescape(props["LOCATION"][0]) if props.get("LOCATION", ("",))[0] else None
     tz = _local()
