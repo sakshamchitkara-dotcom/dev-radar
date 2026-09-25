@@ -4,6 +4,13 @@ All notable changes to this project. Format follows [Keep a Changelog](https://k
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-25
+
+### Fixed
+- `calendar`: `MONTHLY`/`YEARLY` recurrence is expanded (`INTERVAL`, `COUNT`, `UNTIL`, `BYMONTH`, `BYMONTHDAY` incl. negative days, `BYDAY` with ordinals like `2TU`/`-1FR`, `BYSETPOS`); previously only the first occurrence showed. Dates a month lacks are skipped per RFC 5545.
+- `calendar`: a `RECURRENCE-ID` instance now replaces its slot in the series (or removes it when cancelled) instead of being dropped.
+- `calendar`: `VALARM` properties no longer override the event's; open-ended series started years ago (a daily meeting since before ~2013) no longer disappear after the old 5,000-step walk.
+
 ## [0.2.0] - 2026-09-25
 
 ### Added

@@ -115,10 +115,19 @@ dev-radar: error: --config: bad.toml: unknown key 'weather'; use ['calendars', '
 
 ## Calendar server
 
-`calendar` reads `.ics` files or directories listed in `DEV_RADAR_CALENDARS` (or `--calendars`), separated by `:` (`;` on Windows). Export a calendar from Google, Outlook or Apple Calendar, or point it at a synced file; no OAuth. It handles line folding and escapes, TZID/UTC/floating and all-day times, `DURATION`, cancelled events, `EXDATE`, and `DAILY`/`WEEKLY` recurrence with `INTERVAL`, `COUNT`, `UNTIL` and `BYDAY`. Real resource output for [`examples/team.ics`](examples/team.ics) on a Friday:
+`calendar` reads `.ics` files or directories listed in `DEV_RADAR_CALENDARS` (or `--calendars`), separated by `:` (`;` on Windows). Export a calendar from Google, Outlook or Apple Calendar, or point it at a synced file; no OAuth. It handles line folding and escapes, TZID/UTC/floating and all-day times, `DURATION`, cancelled events, `EXDATE`, moved or cancelled single instances (`RECURRENCE-ID`), and `DAILY`/`WEEKLY`/`MONTHLY`/`YEARLY` recurrence with `INTERVAL`, `COUNT`, `UNTIL`, `BYDAY` (including `2TU`, `-1FR`), `BYMONTHDAY`, `BYMONTH` and `BYSETPOS`. Real resource output for [`examples/team.ics`](examples/team.ics) on a Friday:
 
 ```json
 {"day":"2026-09-25","days":1,"events":[{"title":"Team standup","start":"2026-09-25T09:30:00-07:00","end":"2026-09-25T09:45:00-07:00","all_day":false,"location":"Zoom","calendar":"team.ics"}],"calendars":["team.ics"],"errors":[]}
+```
+
+A monthly "last Friday" retro plus a Thursday sync moved to Friday via `RECURRENCE-ID`, real output from `dev-radar --mode fallback --calendars demo.ics:examples/team.ics` on 2026-09-25:
+
+```markdown
+## Today's meetings
+- 09:30–09:45 Team standup (Zoom)
+- 15:00–16:00 Monthly retro
+- 16:00–16:30 Design sync (moved)
 ```
 
 ## GitHub and dependency servers
@@ -218,7 +227,7 @@ uv run pytest -v
 
 - **In-process:** each server is tested through `mcp.Client(server)`. git runs against a throwaway repo, GitHub and deps-watch against `httpx.MockTransport` (the GitHub mock asserts every request is a `GET`), HN against a fake feed, and system-health against the real psutil. Prompts and `subscriptions/listen` events are tested the same way.
 - **Over stdio / HTTP:** `McpHub` spawns the real subprocesses. The tests cover tool discovery, validation errors, the fallback briefing with HN pointed at a dead port, GitHub unconfigured and an unparseable lockfile, a server over Streamable HTTP (directly and through the hub), the Claude loop with a scripted fake client, and the CLI twice in a row to check the history diff and HTML output.
-- **Pure functions:** `--since` parsing, CLI argument errors, credential detection, config loading and section removal, the fallback template with full, empty and all-failed data, the Claude loop's refusal/max_tokens/turn-cap exits, history diff/baseline/pruning, PEP 440 version ordering, `.ics` parsing and recurrence, and the HTML/Slack renderers (escaping, no `javascript:` links).
+- **Pure functions:** `--since` parsing, CLI argument errors, credential detection, config loading and section removal, the fallback template with full, empty and all-failed data, the Claude loop's refusal/max_tokens/turn-cap exits, history diff/baseline/pruning, PEP 440 version ordering, `.ics` parsing and recurrence (daily through yearly, `BYSETPOS`, moved/cancelled instances), and the HTML/Slack renderers (escaping, no `javascript:` links).
 - **Robustness:** the hub with one server down and one crashing on start, latency records, GitHub pagination over two pages, and a bearer-token-guarded HTTP server (401 without the token, working with it through the hub, public bind refused).
 
 CI runs the suite on Ubuntu and macOS with Python 3.11–3.13, then smoke-runs the briefing with github-activity pointed at this repository (read-only `GITHUB_TOKEN`) in markdown, HTML and Slack formats. Two more smoke steps run a config file with sections disabled plus the example calendar (checking the disabled tools are never called, via `--timings`), and a bearer-token HTTP server that must 401 on `curl` and still serve `dev-radar --connect`.
@@ -239,7 +248,7 @@ CI runs the suite on Ubuntu and macOS with Python 3.11–3.13, then smoke-runs t
 
 ## Known limits
 
-- **Calendar recurrence:** `MONTHLY`/`YEARLY` rules only show their first occurrence, and moved single instances (`RECURRENCE-ID`) are dropped, so the series keeps its usual slot. Windows-style `TZID` names fall back to local time.
+- **Calendar recurrence:** `BYWEEKNO`, `BYYEARDAY`, `HOURLY` and `RDATE` are not expanded, `RECURRENCE-ID;RANGE=THISANDFUTURE` only moves the one instance, and Windows-style `TZID` names fall back to local time.
 - **GitHub:** `prs_awaiting_review` reads at most 5 pages (500 open PRs) per repo and makes one reviews request per PR, so very busy repos cost many API calls.
 - **HTTP auth** is one shared static token (`DEV_RADAR_HTTP_TOKEN`), not OAuth; the SDK's OAuth resource-server mode needs an authorization server this project does not run. Use TLS (a reverse proxy) for anything beyond loopback.
 - **Subscriptions** use the SDK's `subscriptions/listen` stream (protocol 2026-07-28); 2025-era clients that only speak `resources/subscribe` see `subscribe: false`.

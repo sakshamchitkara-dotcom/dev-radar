@@ -1,6 +1,6 @@
 [project]
 name = "dev-radar"
-version = "0.2.0"
+version = "0.2.1"
 description = "An MCP host that fans out to git, GitHub, dependency, calendar, Hacker News and system-health MCP servers and writes a daily engineering briefing."
 readme = "README.md"
 license = "MIT"
