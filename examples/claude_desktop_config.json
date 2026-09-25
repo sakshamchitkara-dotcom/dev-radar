@@ -27,6 +27,11 @@
       "command": "uv",
       "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-calendar"],
       "env": { "DEV_RADAR_CALENDARS": "/ABSOLUTE/PATH/TO/work.ics" }
+    },
+    "dev-radar-research": {
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "/ABSOLUTE/PATH/TO/dev-radar", "dev-radar-research"],
+      "env": { "DEV_RADAR_ARXIV_CATEGORIES": "cs.SE,cs.AI", "DEV_RADAR_FEEDS": "https://blog.rust-lang.org/feed.xml" }
     }
   }
 }

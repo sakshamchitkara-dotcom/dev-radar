@@ -26,7 +26,7 @@ async def test_hub_discovers_all_servers_over_stdio(repo):
             "calendar__events", "deps__list_dependencies", "deps__outdated", "deps__vulnerabilities",
             "git__churn_hotspots", "git__recent_commits", "git__top_authors",
             "github__ci_status", "github__prs_awaiting_review", "github__recent_releases",
-            "hn__top_stories", "system__snapshot", "system__top_processes",
+            "hn__top_stories", "research__arxiv_papers", "research__feed_items", "system__snapshot", "system__top_processes",
         ]
         tools = hub.anthropic_tools()
         assert all(t["input_schema"]["type"] == "object" for t in tools)
@@ -90,7 +90,7 @@ def test_cli_fallback_end_to_end(repo, tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert proc.returncode == 0, proc.stderr
-    assert "connected 13 tools" in proc.stderr
+    assert "connected 15 tools" in proc.stderr
     assert "## Churn hotspots" in proc.stdout
     assert "## What changed\n- First recorded briefing" in proc.stdout
     assert out.read_text() == proc.stdout

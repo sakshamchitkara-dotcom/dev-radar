@@ -25,6 +25,7 @@ dev-radar-system = "dev_radar.servers.system_health:main"
 dev-radar-github = "dev_radar.servers.github_activity:main"
 dev-radar-deps = "dev_radar.servers.deps_watch:main"
 dev-radar-calendar = "dev_radar.servers.calendar_ics:main"
+dev-radar-research = "dev_radar.servers.research_trends:main"
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]

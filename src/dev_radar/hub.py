@@ -22,11 +22,13 @@ SERVERS = {
     "github": "dev_radar.servers.github_activity",
     "deps": "dev_radar.servers.deps_watch",
     "calendar": "dev_radar.servers.calendar_ics",
+    "research": "dev_radar.servers.research_trends",
 }
 # The stdio transport only forwards a minimal default environment; pass these through too.
 PASSTHROUGH_ENV = (
     "HN_API_BASE", "GITHUB_TOKEN", "GITHUB_API_BASE", "DEV_RADAR_GITHUB_REPOS",
     "OSV_API_BASE", "PYPI_API_BASE", "NPM_API_BASE", "DEV_RADAR_CALENDARS", "TZ",
+    "ARXIV_API_BASE", "DEV_RADAR_ARXIV_CATEGORIES", "DEV_RADAR_FEEDS",
 )
 SEP = "__"  # qualified tool name: "<server>__<tool>" (Claude tool names allow [a-zA-Z0-9_-])
 

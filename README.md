@@ -1,6 +1,6 @@
 # Dev Radar
 
-A small **MCP host** that connects to six custom **Model Context Protocol** servers, gathers data from all of them, and writes a daily engineering briefing as markdown, self-contained HTML, or a Slack webhook payload. Claude writes the briefing when credentials are available (API key, auth token or an `ant auth login` profile). Without one, a deterministic template does, so the demo always runs. Each run is saved, and the next one opens with **what changed since yesterday**.
+A small **MCP host** that connects to seven custom **Model Context Protocol** servers, gathers data from all of them, and writes a daily engineering briefing as markdown, self-contained HTML, or a Slack webhook payload. Claude writes the briefing when credentials are available (API key, auth token or an `ant auth login` profile). Without one, a deterministic template does, so the demo always runs. Each run is saved, and the next one opens with **what changed since yesterday**.
 
 | Server | Tools | Resources | Prompts |
 |---|---|---|---|
@@ -40,7 +40,7 @@ flowchart LR
     DIFF --> OUT["markdown · HTML · Slack JSON"]
 ```
 
-- `src/dev_radar/servers/*.py`: the six servers, built on the official `mcp` Python SDK (v2 `MCPServer`). `servers/__init__.py` holds the shared `--transport` switch and the bearer-token guard.
+- `src/dev_radar/servers/*.py`: the seven servers, built on the official `mcp` Python SDK (v2 `MCPServer`). `servers/__init__.py` holds the shared `--transport` switch and the bearer-token guard.
 - `src/dev_radar/hub.py`: spawns each server as a subprocess (or connects to a Streamable HTTP URL), lists its tools under `<server>__<tool>` names, and converts them into Claude tool definitions. A server that cannot be reached is skipped (its sections say so) instead of failing the run, and every call's latency is recorded for `--timings`.
 - `src/dev_radar/briefing.py`: both modes. **Claude mode** runs a manual tool-use loop. It runs parallel tool calls concurrently, sends every result back in one turn, reports errors as `is_error` tool results, and stops on `refusal`, `max_tokens` or a 10-turn cap. **Fallback mode** makes twelve tool calls concurrently and fills in a template. If one server fails, its section shows an inline note and the rest of the briefing still renders.
 - `src/dev_radar/history.py`: saves each run's structured tool data and diffs it against the latest run from before today: new commits, CI state flips, PRs entering or leaving review, releases, new/resolved vulnerabilities, outdated packages, hotspot moves, new HN matches, memory/disk swings.
@@ -115,6 +115,8 @@ dev-radar: error: --config: bad.toml: unknown key 'weather'; use ['calendars', '
 
 ## Calendar server
 
+`research` has two tools: `arxiv_papers` (newest submissions in `DEV_RADAR_ARXIV_CATEGORIES`, default `cs.SE,cs.AI`, filtered by keyword over title and abstract) and `feed_items` (recent posts from the RSS/Atom URLs in `DEV_RADAR_FEEDS`). `feed_items` only fetches the configured feeds and never takes a URL from the caller. Claude mode can call both; the deterministic template does not use them yet.
+
 `calendar` reads `.ics` files or directories listed in `DEV_RADAR_CALENDARS` (or `--calendars`), separated by `:` (`;` on Windows). Export a calendar from Google, Outlook or Apple Calendar, or point it at a synced file; no OAuth. It handles line folding and escapes, TZID/UTC/floating and all-day times, `DURATION`, cancelled events, `EXDATE`, moved or cancelled single instances (`RECURRENCE-ID`), and `DAILY`/`WEEKLY`/`MONTHLY`/`YEARLY` recurrence with `INTERVAL`, `COUNT`, `UNTIL`, `BYDAY` (including `2TU`, `-1FR`), `BYMONTHDAY`, `BYMONTH` and `BYSETPOS`. Real resource output for [`examples/team.ics`](examples/team.ics) on a Friday:
 
 ```json
@@ -173,7 +175,7 @@ git-insights: error: --host 0.0.0.0 exposes the server beyond this machine; set 
 
 ## Use the servers from Claude Code / Claude Desktop
 
-This repo ships a project-scoped [`.mcp.json`](.mcp.json). Open Claude Code in this directory and approve the six `dev-radar-*` servers. For Claude Desktop, copy [`examples/claude_desktop_config.json`](examples/claude_desktop_config.json) into `claude_desktop_config.json` and replace the absolute paths and repo names.
+This repo ships a project-scoped [`.mcp.json`](.mcp.json). Open Claude Code in this directory and approve the seven `dev-radar-*` servers. For Claude Desktop, copy [`examples/claude_desktop_config.json`](examples/claude_desktop_config.json) into `claude_desktop_config.json` and replace the absolute paths and repo names.
 
 You can also run a server directly with `uv run dev-radar-git` (or `-hn`, `-system`, `-github`, `-deps`, `-calendar`). It speaks MCP on stdin/stdout.
 
@@ -248,7 +250,7 @@ CI runs the suite on Ubuntu and macOS with Python 3.11–3.13, then smoke-runs t
 
 ## Known limits
 
-- **Calendar recurrence:** `BYWEEKNO`, `BYYEARDAY`, `HOURLY` and `RDATE` are not expanded, `RECURRENCE-ID;RANGE=THISANDFUTURE` only moves the one instance, and Windows-style `TZID` names fall back to local time.
+- **Calendar recurrence:** `BYHOUR`/`BYMINUTE`/`BYSECOND`, `WKST` other than Monday, and `BYSETPOS` with `BYWEEKNO`/`BYYEARDAY` are ignored; `RECURRENCE-ID;RANGE=THISANDFUTURE` only moves the one instance; Windows `TZID` names outside the built-in table fall back to local time, and on Windows the local zone is today's fixed UTC offset.
 - **GitHub:** `prs_awaiting_review` reads at most 5 pages (500 open PRs) per repo and makes one reviews request per PR, so very busy repos cost many API calls.
 - **HTTP auth** is one shared static token (`DEV_RADAR_HTTP_TOKEN`), not OAuth; the SDK's OAuth resource-server mode needs an authorization server this project does not run. Use TLS (a reverse proxy) for anything beyond loopback.
 - **Subscriptions** use the SDK's `subscriptions/listen` stream (protocol 2026-07-28); 2025-era clients that only speak `resources/subscribe` see `subscribe: false`.
