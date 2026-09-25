@@ -28,3 +28,9 @@ def repo(tmp_path: Path) -> Path:
         check=True, capture_output=True,
     )
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def no_user_config(tmp_path_factory, monkeypatch):
+    """Keep a developer's ~/.config/dev-radar/config.toml out of the tests."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path_factory.mktemp("xdg-config")))

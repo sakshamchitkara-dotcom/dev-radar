@@ -49,8 +49,9 @@ def window_label(days: int, since: str | None) -> str:
     return f"since {since}" if since else f"last {days}d"
 
 
-async def gather(hub: McpHub, keywords: list[str], days: int, since: str | None = None) -> dict[str, Any]:
-    """Call the fixed tool set concurrently; failed calls come back as {"error": text}.
+async def gather(hub: McpHub, keywords: list[str], days: int, since: str | None = None,
+                 skip: frozenset[str] = frozenset()) -> dict[str, Any]:
+    """Call the fixed tool set concurrently; failed calls come back as {"error": text}, `skip`ped ones as disabled.
 
     `since` (ISO-8601) narrows git history exactly; `days` must cover it for day-granular tools.
     """
@@ -69,8 +70,9 @@ async def gather(hub: McpHub, keywords: list[str], days: int, since: str | None 
         "outdated": ("deps__outdated", {"limit": 50}),
         "meetings": ("calendar__events", {}),
     }
+    data: dict[str, Any] = {key: {"error": "disabled in config"} for key in skip & calls.keys()}
+    calls = {k: v for k, v in calls.items() if k not in skip}
     results = await asyncio.gather(*(hub.call(t, a) for t, a in calls.values()), return_exceptions=True)
-    data: dict[str, Any] = {}
     for key, res in zip(calls, results):
         if isinstance(res, BaseException):
             data[key] = {"error": str(res)}

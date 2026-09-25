@@ -14,7 +14,7 @@ from pathlib import Path
 import anthropic
 from anthropic.lib.credentials import default_credentials
 
-from dev_radar import history
+from dev_radar import config, history
 from dev_radar.briefing import claude_briefing, gather, render_fallback
 from dev_radar.hub import SERVERS, McpHub
 from dev_radar.render import slack_payload, to_html
@@ -61,7 +61,8 @@ async def run(args: argparse.Namespace) -> str:
         if args.list_tools:
             return "\n".join(f"{t['name']}: {t['description']}" for t in hub.anthropic_tools()) + "\n"
         # The fixed tool set feeds the fallback template and the history diff in both modes.
-        data = await gather(hub, keywords, args.days, args.since)
+        skip = frozenset(k for s in args.disabled for k in config.SECTIONS[s])
+        data = await gather(hub, keywords, args.days, args.since, skip)
         md = None
         if mode == "claude":
             _log("mode: claude")
@@ -74,6 +75,7 @@ async def run(args: argparse.Namespace) -> str:
         else:
             _log("mode: fallback (deterministic)")
         md = md or render_fallback(data, hub.repo, keywords, args.days, args.since)
+        md = config.drop_sections(md, args.disabled)
         if args.timings:
             _log(hub.timing_report())
     if args.history_dir is None:
@@ -113,7 +115,19 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--list-history", action="store_true", help="list saved briefings for --repo and exit")
     p.add_argument("--connect", action="append", default=[], metavar="NAME=URL",
                    help=f"use a running Streamable HTTP server instead of spawning one; NAME in {sorted(SERVERS)}")
+    p.add_argument("--config", type=Path, help="TOML file with defaults for these flags and [sections] on/off "
+                   f"(default: {config.default_path()} if it exists)")
+    pre, _ = p.parse_known_args(argv)
+    cfg_path = pre.config or (config.default_path() if config.default_path().is_file() else None)
+    disabled: set[str] = set()
+    if cfg_path:
+        try:
+            defaults, disabled = config.load(cfg_path)
+        except ValueError as e:
+            p.error(f"--config: {e}")
+        p.set_defaults(**defaults)
     args = p.parse_args(argv)
+    args.disabled = disabled
     connect = dict(c.partition("=")[::2] for c in args.connect)
     if unknown := set(connect) - set(SERVERS):
         p.error(f"--connect: unknown server(s) {sorted(unknown)}; choose from {sorted(SERVERS)}")
